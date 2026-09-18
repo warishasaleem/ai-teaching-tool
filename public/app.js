@@ -1,4 +1,4 @@
-// TEACHER AI - CLIENT APPLICATION LOGIC WITH SECURE ACCOUNT AUTHENTICATION
+// TEACHER AI - CLIENT APPLICATION LOGIC WITH SECURE ACCOUNT AUTHENTICATION & MOBILE RESPONSIVENESS
 
 document.addEventListener('DOMContentLoaded', () => {
   // Authentication & State
@@ -25,8 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
   const topLogoutBtn = document.getElementById('topLogoutBtn');
 
-  // DOM Elements - Sidebar
+  // DOM Elements - Sidebar & Backdrop
   const sidebar = document.getElementById('sidebar');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
   const openSidebarBtn = document.getElementById('openSidebarBtn');
   const closeSidebarBtn = document.getElementById('closeSidebarBtn');
   const newTopicBtn = document.getElementById('newTopicBtn');
@@ -89,6 +90,17 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuthSession();
   }
 
+  // --- MOBILE SIDEBAR DRAWER LOGIC ---
+  function openMobileSidebar() {
+    sidebar.classList.add('open');
+    if (sidebarBackdrop) sidebarBackdrop.classList.add('active');
+  }
+
+  function closeMobileSidebar() {
+    sidebar.classList.remove('open');
+    if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
+  }
+
   // --- AUTHENTICATION & SECURITY SYSTEM ---
   function checkAuthSession() {
     try {
@@ -115,7 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setupAuthListeners() {
-    // Auth Tab Switch
     loginTabBtn.addEventListener('click', () => {
       loginTabBtn.classList.add('active');
       registerTabBtn.classList.remove('active');
@@ -130,7 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
       loginForm.style.display = 'none';
     });
 
-    // Password Visibility Toggle
     document.querySelectorAll('.toggle-pwd-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const targetId = btn.getAttribute('data-target');
@@ -145,7 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Login Form Submit
     loginForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const email = document.getElementById('loginEmail').value.trim();
@@ -158,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
       onLoginSuccess(userObj, true);
     });
 
-    // Register Form Submit
     registerForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const name = document.getElementById('regName').value.trim();
@@ -172,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
       onLoginSuccess(userObj, true);
     });
 
-    // Demo Quick Login
     demoLoginBtn.addEventListener('click', () => {
       const demoUser = {
         name: 'Demo Teacher',
@@ -181,7 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
       onLoginSuccess(demoUser, true);
     });
 
-    // Logout Handlers
     sidebarLogoutBtn.addEventListener('click', handleLogout);
     topLogoutBtn.addEventListener('click', handleLogout);
   }
@@ -190,14 +196,12 @@ document.addEventListener('DOMContentLoaded', () => {
     currentUser = user;
     localStorage.setItem('teacher_ai_current_user', JSON.stringify(currentUser));
 
-    // Send backend notification alert to warikhan1995@gmail.com
     fetch('/api/notify-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: currentUser.name, email: currentUser.email })
     }).catch(err => console.error('Login notification error:', err));
 
-    // Update Profile Views
     const initial = (currentUser.name || currentUser.email || 'T').charAt(0).toUpperCase();
     sidebarUserAvatar.textContent = initial;
     topUserAvatar.textContent = initial;
@@ -207,7 +211,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     hideAuthModal();
 
-    // Load User-Specific Isolated Threads
     loadThreadsFromStorage();
     renderSidebar();
     showHeroView();
@@ -228,10 +231,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- LOCAL STORAGE LOGIC (ISOLATED PER USER EMAIL) ---
+  // --- LOCAL STORAGE LOGIC ---
   function getUserStorageKey() {
     if (!currentUser || !currentUser.email) return 'teacher_ai_threads_guest';
-    // Sanitize email key to ensure complete data isolation
     const safeEmail = currentUser.email.toLowerCase().replace(/[^a-z0-9]/g, '_');
     return `teacher_ai_threads_${safeEmail}`;
   }
@@ -258,14 +260,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- EVENT LISTENERS ---
   function setupEventListeners() {
-    // Sidebar Mobile Toggle
-    if (openSidebarBtn) openSidebarBtn.addEventListener('click', () => sidebar.classList.add('open'));
-    if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', () => sidebar.classList.remove('open'));
+    // Sidebar Mobile Drawer Controls
+    if (openSidebarBtn) openSidebarBtn.addEventListener('click', openMobileSidebar);
+    if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', closeMobileSidebar);
+    if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeMobileSidebar);
 
     // New Topic Button
     newTopicBtn.addEventListener('click', () => {
       showHeroView();
-      if (window.innerWidth <= 900) sidebar.classList.remove('open');
+      closeMobileSidebar();
     });
 
     // History Search
@@ -347,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Section Copy Buttons
     document.querySelectorAll('.copy-sec-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
         const target = btn.getAttribute('data-target');
         const thread = getActiveThread();
         if (!thread) return;
@@ -401,7 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(result.error || 'Failed to generate content from server.');
       }
 
-      // Create new thread record
       const newThread = {
         id: 'thread_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
         topic: topicName,
@@ -411,12 +413,10 @@ document.addEventListener('DOMContentLoaded', () => {
         messages: []
       };
 
-      // Add to beginning of array (newest first)
       threads.unshift(newThread);
       saveThreadsToStorage();
       renderSidebar();
 
-      // Clear input and display thread
       topicInput.value = '';
       loadThread(newThread.id);
       showToast('Lesson plan generated successfully!');
@@ -435,7 +435,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const thread = getActiveThread();
     if (!thread) return;
 
-    // Add user message to state & UI
     const userMsgObj = {
       id: 'msg_' + Date.now(),
       sender: 'user',
@@ -452,11 +451,9 @@ document.addEventListener('DOMContentLoaded', () => {
     followUpInput.value = '';
     scrollToBottomChat();
 
-    // Disable input while generating response
     sendFollowUpBtn.disabled = true;
     followUpInput.disabled = true;
 
-    // Show temporary thinking bubble
     const tempThinkingId = 'thinking_' + Date.now();
     const thinkingBubble = document.createElement('div');
     thinkingBubble.className = 'chat-bubble assistant thinking';
@@ -475,14 +472,13 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({
           topic: thread.topic,
           initialResponse: thread.initialResponse,
-          history: thread.messages.slice(0, -1), // Send past history minus current
+          history: thread.messages.slice(0, -1),
           message: messageText
         })
       });
 
       const result = await response.json();
       
-      // Remove thinking indicator
       const tempElement = document.getElementById(tempThinkingId);
       if (tempElement) tempElement.remove();
 
@@ -494,7 +490,6 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(result.error || 'Failed to get follow-up response.');
       }
 
-      // Add assistant response to state & UI
       const assistantMsgObj = {
         id: 'msg_' + Date.now(),
         sender: 'assistant',
@@ -537,42 +532,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     activeThreadId = thread.id;
     
-    // Header setup
     activeTopicTitle.textContent = thread.topic;
     currentTopicBadge.style.display = 'inline-flex';
     activeTopicActions.style.display = 'flex';
 
-    // Populate Initial Structured Response
     const data = thread.initialResponse;
     greetingText.textContent = data.greeting || `Hello Teacher! Here is your differentiated plan for "${thread.topic}".`;
 
-    // Weak Tier
     weakHowToExplain.textContent = data.weak?.howToExplain || 'No explanation available.';
     renderExerciseList(weakExercises, data.weak?.exercises || []);
 
-    // Medium Tier
     mediumHowToExplain.textContent = data.medium?.howToExplain || 'No explanation available.';
     renderExerciseList(mediumExercises, data.medium?.exercises || []);
 
-    // Intelligent Tier
     intelligentHowToExplain.textContent = data.intelligent?.howToExplain || 'No explanation available.';
     renderExerciseList(intelligentExercises, data.intelligent?.exercises || []);
 
-    // Teaching Strategy Tips
     teachingTipsText.textContent = data.teachingTips || 'No general strategy tips provided.';
 
-    // Populate Chat Follow-ups
     chatMessagesList.innerHTML = '';
     if (Array.isArray(thread.messages) && thread.messages.length > 0) {
       thread.messages.forEach(msg => appendChatBubble(msg));
     }
 
-    // Switch views
     heroView.style.display = 'none';
     threadView.style.display = 'flex';
 
     renderSidebar();
-    if (window.innerWidth <= 900) sidebar.classList.remove('open');
+    closeMobileSidebar();
   }
 
   function renderExerciseList(container, exercises) {
@@ -590,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       item.innerHTML = `
         <div class="exercise-text"><strong>Q${idx + 1}.</strong> ${escapeHtml(cleanText)}</div>
-        <button class="copy-ex-btn" title="Copy Question"><i class="fa-solid fa-copy"></i></button>
+        <button class="copy-ex-btn touch-target" title="Copy Question"><i class="fa-solid fa-copy"></i></button>
       `;
 
       item.querySelector('.copy-ex-btn').addEventListener('click', () => {
@@ -645,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="history-item-title">${escapeHtml(t.topic)}</span>
           <span class="history-item-date">${relTime}</span>
         </div>
-        <button class="del-thread-btn" title="Delete Topic Thread"><i class="fa-solid fa-xmark"></i></button>
+        <button class="del-thread-btn touch-target" title="Delete Topic Thread"><i class="fa-solid fa-xmark"></i></button>
       `;
 
       li.addEventListener('click', (e) => {
@@ -767,7 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (diff < 60) return 'Just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
     return new Date(timestamp).toLocaleDateString();
   }

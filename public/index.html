@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>TEACHER AI - Secure Differentiated Lesson Plan Assistant</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +14,7 @@
 <body class="dark-theme">
 
   <!-- ==========================================================================
-       1. AUTHENTICATION & LOGIN OVERLAY (Shows when user is logged out)
+       1. AUTHENTICATION & LOGIN OVERLAY
        ========================================================================== -->
   <div class="auth-overlay" id="authOverlay">
     <div class="auth-card">
@@ -47,7 +47,7 @@
           <label for="loginPassword"><i class="fa-solid fa-lock"></i> Password</label>
           <div class="password-input-wrapper">
             <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
-            <button type="button" class="toggle-pwd-btn" data-target="loginPassword"><i class="fa-solid fa-eye"></i></button>
+            <button type="button" class="toggle-pwd-btn touch-target" data-target="loginPassword" title="Toggle password visibility"><i class="fa-solid fa-eye"></i></button>
           </div>
         </div>
 
@@ -58,7 +58,7 @@
           <a href="#" class="forgot-link" id="forgotPwdLink">Forgot password?</a>
         </div>
 
-        <button type="submit" class="btn btn-primary auth-submit-btn">
+        <button type="submit" class="btn btn-primary auth-submit-btn touch-target">
           <i class="fa-solid fa-right-to-bracket"></i> Secure Sign In
         </button>
 
@@ -66,7 +66,7 @@
           <span>OR QUICK ACCESS</span>
         </div>
 
-        <button type="button" class="btn btn-outline demo-login-btn" id="demoLoginBtn">
+        <button type="button" class="btn btn-outline demo-login-btn touch-target" id="demoLoginBtn">
           <i class="fa-solid fa-bolt"></i> Quick Demo Login (Teacher Account)
         </button>
       </form>
@@ -91,11 +91,11 @@
           <label for="regPassword"><i class="fa-solid fa-lock"></i> Create Password</label>
           <div class="password-input-wrapper">
             <input type="password" id="regPassword" placeholder="Minimum 6 characters" required minlength="6">
-            <button type="button" class="toggle-pwd-btn" data-target="regPassword"><i class="fa-solid fa-eye"></i></button>
+            <button type="button" class="toggle-pwd-btn touch-target" data-target="regPassword" title="Toggle password visibility"><i class="fa-solid fa-eye"></i></button>
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary auth-submit-btn">
+        <button type="submit" class="btn btn-primary auth-submit-btn touch-target">
           <i class="fa-solid fa-user-plus"></i> Create Teacher Account
         </button>
       </form>
@@ -111,7 +111,10 @@
        ========================================================================== -->
   <div class="app-layout" id="appLayout" style="display: none;">
     
-    <!-- SIDEBAR -->
+    <!-- MOBILE SIDEBAR BACKDROP OVERLAY -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- SIDEBAR DRAWER -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="brand">
@@ -123,13 +126,13 @@
             <span class="badge">SECURE PORTAL</span>
           </div>
         </div>
-        <button class="icon-btn mobile-close-btn" id="closeSidebarBtn" title="Close Sidebar">
+        <button class="icon-btn mobile-close-btn touch-target" id="closeSidebarBtn" title="Close Sidebar">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
       <div class="sidebar-actions">
-        <button class="btn btn-primary new-topic-btn" id="newTopicBtn">
+        <button class="btn btn-primary new-topic-btn touch-target" id="newTopicBtn">
           <i class="fa-solid fa-plus"></i> New Topic
         </button>
       </div>
@@ -160,13 +163,13 @@
           <span class="user-name" id="sidebarUserName">Teacher Account</span>
           <span class="user-email" id="sidebarUserEmail">teacher@school.edu</span>
         </div>
-        <button class="logout-btn" id="sidebarLogoutBtn" title="Sign Out">
+        <button class="logout-btn touch-target" id="sidebarLogoutBtn" title="Sign Out">
           <i class="fa-solid fa-right-from-bracket"></i>
         </button>
       </div>
 
       <div class="sidebar-footer">
-        <button class="btn btn-ghost clear-all-btn" id="clearHistoryBtn">
+        <button class="btn btn-ghost clear-all-btn touch-target" id="clearHistoryBtn">
           <i class="fa-solid fa-trash-can"></i> Clear Private History
         </button>
       </div>
@@ -177,7 +180,7 @@
       <!-- TOP NAVIGATION BAR -->
       <header class="top-nav">
         <div class="nav-left">
-          <button class="icon-btn mobile-menu-btn" id="openSidebarBtn" title="Open History Sidebar">
+          <button class="icon-btn mobile-menu-btn touch-target" id="openSidebarBtn" title="Open History Sidebar">
             <i class="fa-solid fa-bars"></i>
           </button>
           <div class="current-topic-badge" id="currentTopicBadge" style="display: none;">
@@ -189,32 +192,32 @@
         <div class="nav-right">
           <div id="activeTopicActions" style="display: none;" class="topic-actions-group">
             <div class="view-switcher">
-              <button class="switch-btn active" id="viewTabbedBtn" title="Tabbed View">
-                <i class="fa-solid fa-table-cells-large"></i> Tabs
+              <button class="switch-btn active touch-target" id="viewTabbedBtn" title="Tabbed View">
+                <i class="fa-solid fa-table-cells-large"></i> <span class="hide-mobile">Tabs</span>
               </button>
-              <button class="switch-btn" id="viewGridBtn" title="3-Column Grid View">
-                <i class="fa-solid fa-columns"></i> Grid
+              <button class="switch-btn touch-target" id="viewGridBtn" title="Stacked / Grid View">
+                <i class="fa-solid fa-columns"></i> <span class="hide-mobile">Grid</span>
               </button>
             </div>
 
-            <button class="btn btn-outline" id="copyFullPlanBtn" title="Copy Full Plan">
+            <button class="btn btn-outline touch-target" id="copyFullPlanBtn" title="Copy Full Plan">
               <i class="fa-solid fa-copy"></i> <span class="hide-mobile">Copy Plan</span>
             </button>
 
-            <button class="btn btn-outline" id="printPlanBtn" title="Print or Export PDF">
-              <i class="fa-solid fa-print"></i> <span class="hide-mobile">Print / PDF</span>
+            <button class="btn btn-outline touch-target" id="printPlanBtn" title="Print or Export PDF">
+              <i class="fa-solid fa-print"></i> <span class="hide-mobile">Print</span>
             </button>
 
-            <button class="icon-btn delete-thread-btn" id="deleteCurrentThreadBtn" title="Delete This Thread">
+            <button class="icon-btn delete-thread-btn touch-target" id="deleteCurrentThreadBtn" title="Delete This Thread">
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </div>
 
-          <!-- USER TOP PROFILE DROPDOWN -->
+          <!-- USER TOP PROFILE BADGE -->
           <div class="nav-profile-badge" id="navProfileBadge">
             <div class="user-avatar mini" id="topUserAvatar">T</div>
             <span class="top-user-name hide-mobile" id="topUserName">Teacher</span>
-            <button class="btn-logout-icon" id="topLogoutBtn" title="Log Out Securely">
+            <button class="btn-logout-icon touch-target" id="topLogoutBtn" title="Log Out Securely">
               <i class="fa-solid fa-power-off"></i>
             </button>
           </div>
@@ -243,7 +246,7 @@
               <div class="input-hint">
                 <i class="fa-solid fa-lock"></i> Protected Session • Saved to Private Educator History
               </div>
-              <button class="btn btn-accent generate-btn" id="generateBtn">
+              <button class="btn btn-accent generate-btn touch-target" id="generateBtn">
                 <span class="btn-text"><i class="fa-solid fa-paper-plane"></i> Generate Teaching Plan</span>
                 <span class="spinner" style="display: none;"><i class="fa-solid fa-circle-notch fa-spin"></i> Generating...</span>
               </button>
@@ -254,11 +257,11 @@
           <div class="sample-prompts">
             <span class="sample-label">Try popular classroom topics:</span>
             <div class="prompt-chips">
-              <button class="chip-btn" data-topic="Photosynthesis & Cellular Respiration (Grade 7)">🌱 Photosynthesis (Grade 7)</button>
-              <button class="chip-btn" data-topic="Quadratic Equations & Factoring (Grade 9)">📐 Quadratic Equations (Grade 9)</button>
-              <button class="chip-btn" data-topic="Adding and Subtracting Fractions with Unlike Denominators (Grade 5)">🔢 Fractions (Grade 5)</button>
-              <button class="chip-btn" data-topic="Causes of World War II & Global Impact (Grade 10)">🌍 World War II (Grade 10)</button>
-              <button class="chip-btn" data-topic="Introduction to Python Variables and Loops (High School)">💻 Python Loops (High School)</button>
+              <button class="chip-btn touch-target" data-topic="Photosynthesis & Cellular Respiration (Grade 7)">🌱 Photosynthesis (Grade 7)</button>
+              <button class="chip-btn touch-target" data-topic="Quadratic Equations & Factoring (Grade 9)">📐 Quadratic Equations (Grade 9)</button>
+              <button class="chip-btn touch-target" data-topic="Adding and Subtracting Fractions with Unlike Denominators (Grade 5)">🔢 Fractions (Grade 5)</button>
+              <button class="chip-btn touch-target" data-topic="Causes of World War II & Global Impact (Grade 10)">🌍 World War II (Grade 10)</button>
+              <button class="chip-btn touch-target" data-topic="Introduction to Python Variables and Loops (High School)">💻 Python Loops (High School)</button>
             </div>
           </div>
         </div>
@@ -283,19 +286,19 @@
 
           <!-- 2. STUDENT LEVEL CATEGORIES (TABS / GRID CONTAINER) -->
           <div class="level-tabs-header" id="levelTabsHeader">
-            <button class="level-tab-btn weak-tab active" data-level="weak">
+            <button class="level-tab-btn weak-tab active touch-target" data-level="weak">
               <span class="level-dot red"></span>
               <span class="tab-name">Weak Students</span>
               <span class="tab-badge">Basic</span>
             </button>
 
-            <button class="level-tab-btn medium-tab" data-level="medium">
+            <button class="level-tab-btn medium-tab touch-target" data-level="medium">
               <span class="level-dot yellow"></span>
               <span class="tab-name">Medium Students</span>
               <span class="tab-badge">Standard</span>
             </button>
 
-            <button class="level-tab-btn intelligent-tab" data-level="intelligent">
+            <button class="level-tab-btn intelligent-tab touch-target" data-level="intelligent">
               <span class="level-dot green"></span>
               <span class="tab-name">Intelligent Students</span>
               <span class="tab-badge">Advanced</span>
@@ -312,7 +315,7 @@
                   <span class="level-pill red"><i class="fa-solid fa-seedling"></i> Weak Students</span>
                   <span class="level-desc">Simpler language • Step-by-step breakdown • Basic exercises</span>
                 </div>
-                <button class="copy-sec-btn" data-target="weak" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
+                <button class="copy-sec-btn touch-target" data-target="weak" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
               </div>
 
               <div class="explain-box">
@@ -335,7 +338,7 @@
                   <span class="level-pill yellow"><i class="fa-solid fa-tree"></i> Medium Students</span>
                   <span class="level-desc">Moderate difficulty • Balanced explanation • Standard practice</span>
                 </div>
-                <button class="copy-sec-btn" data-target="medium" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
+                <button class="copy-sec-btn touch-target" data-target="medium" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
               </div>
 
               <div class="explain-box">
@@ -358,7 +361,7 @@
                   <span class="level-pill green"><i class="fa-solid fa-brain"></i> Intelligent Students</span>
                   <span class="level-desc">Advanced exercises • Deeper conceptual inquiry • Complex challenges</span>
                 </div>
-                <button class="copy-sec-btn" data-target="intelligent" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
+                <button class="copy-sec-btn touch-target" data-target="intelligent" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
               </div>
 
               <div class="explain-box">
@@ -401,16 +404,16 @@
           <div class="chat-suggestions">
             <span class="suggestions-label">Quick Follow-up Actions:</span>
             <div class="suggestion-chips">
-              <button class="chat-chip" data-msg="Make the Weak Students section even simpler with relatable real-world analogies.">
+              <button class="chat-chip touch-target" data-msg="Make the Weak Students section even simpler with relatable real-world analogies.">
                 👶 Simplify Weak Section
               </button>
-              <button class="chat-chip" data-msg="Add 3 more Multiple Choice Questions (MCQs) for Medium Students.">
+              <button class="chat-chip touch-target" data-msg="Add 3 more Multiple Choice Questions (MCQs) for Medium Students.">
                 📝 +3 MCQs for Medium
               </button>
-              <button class="chat-chip" data-msg="Give me 2 real-world project/research prompts for Intelligent Students.">
+              <button class="chat-chip touch-target" data-msg="Give me 2 real-world project/research prompts for Intelligent Students.">
                 🚀 Project Prompts for Intelligent
               </button>
-              <button class="chat-chip" data-msg="Create a quick 5-question pop quiz with answer keys for this topic.">
+              <button class="chat-chip touch-target" data-msg="Create a quick 5-question pop quiz with answer keys for this topic.">
                 🎯 Printable Pop Quiz
               </button>
             </div>
@@ -419,7 +422,7 @@
           <!-- FOLLOW-UP INPUT BAR -->
           <div class="chat-input-wrapper">
             <textarea id="followUpInput" placeholder="Ask follow-up questions (e.g., 'Make weak level easier', 'Add 2 more MCQs for medium level')..." rows="2"></textarea>
-            <button class="btn btn-accent send-msg-btn" id="sendFollowUpBtn">
+            <button class="btn btn-accent send-msg-btn touch-target" id="sendFollowUpBtn" title="Send Follow-up Message">
               <i class="fa-solid fa-paper-plane"></i>
             </button>
           </div>
