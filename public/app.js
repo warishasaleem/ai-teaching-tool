@@ -1,4 +1,18 @@
-// TEACHER AI - CLIENT APPLICATION LOGIC WITH SECURE ACCOUNT AUTHENTICATION & MOBILE RESPONSIVENESS
+// TEACHER AI - FIREBASE GOOGLE AUTHENTICATION & FIRESTORE ALLOWLIST ACCESS CONTROL
+import { 
+  auth, 
+  db,
+  googleProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged,
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs
+} from "./firebaseConfig.js";
 
 document.addEventListener('DOMContentLoaded', () => {
   // Authentication & State
@@ -7,14 +21,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeThreadId = null;
   let viewMode = 'tabbed'; // 'tabbed' or 'grid'
 
-  // DOM Elements - Auth Modal
+  // DOM Elements - Auth & Restricted Overlays
   const authOverlay = document.getElementById('authOverlay');
+  const accessRestrictedOverlay = document.getElementById('accessRestrictedOverlay');
+  const restrictedEmailDisplay = document.getElementById('restrictedEmailDisplay');
+  const restrictedLogoutBtn = document.getElementById('restrictedLogoutBtn');
   const appLayout = document.getElementById('appLayout');
-  const loginTabBtn = document.getElementById('loginTabBtn');
-  const registerTabBtn = document.getElementById('registerTabBtn');
-  const loginForm = document.getElementById('loginForm');
-  const registerForm = document.getElementById('registerForm');
-  const demoLoginBtn = document.getElementById('demoLoginBtn');
+  const googleSignInBtn = document.getElementById('googleSignInBtn');
 
   // DOM Elements - User Profile Displays
   const sidebarUserName = document.getElementById('sidebarUserName');
@@ -81,13 +94,163 @@ document.addEventListener('DOMContentLoaded', () => {
   const loaderTitle = document.getElementById('loaderTitle');
   const toastContainer = document.getElementById('toastContainer');
 
-  // Initialize App
+  // Initialize App & Firebase Auth Observer
   init();
 
   function init() {
-    setupAuthListeners();
+    setupFirebaseAuth();
     setupEventListeners();
-    checkAuthSession();
+  }
+
+  // --- FIRESTORE EMAIL ALLOWLIST ACCESS CHECK ---
+  async function isUserEmailAllowed(userEmail) {
+    if (!userEmail) return false;
+    const cleanEmail = userEmail.toLowerCase().trim();
+
+    try {
+      // 1. Direct Document ID check (collection: "allowedUsers", doc ID: "teacher@school.edu")
+      const docRef = doc(db, "allowedUsers", cleanEmail);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return true;
+      }
+
+      // 2. Query check (field "email" == cleanEmail)
+      const q = query(collection(db, "allowedUsers"), where("email", "==", cleanEmail));
+      const querySnap = await getDocs(q);
+      if (!querySnap.empty) {
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      console.warn("Firestore allowlist lookup error:", err);
+      return false;
+    }
+  }
+
+  // --- FIREBASE AUTHENTICATION OBSERVER & HANDLERS ---
+  function setupFirebaseAuth() {
+    // 1. Google Sign-In Entry Point Button
+    if (googleSignInBtn) {
+      googleSignInBtn.addEventListener('click', async () => {
+        try {
+          googleSignInBtn.disabled = true;
+          googleSignInBtn.style.opacity = '0.7';
+          await signInWithPopup(auth, googleProvider);
+        } catch (error) {
+          googleSignInBtn.disabled = false;
+          googleSignInBtn.style.opacity = '1';
+          console.error("Firebase Google Sign-In Error:", error);
+          if (error.code !== 'auth/popup-closed-by-user') {
+            showToast(error.message || "Failed to sign in with Google.", "error");
+          }
+        }
+      });
+    }
+
+    // 2. Firebase Auth State Observer with Firestore Allowlist Verification
+    onAuthStateChanged(auth, async (user) => {
+      if (googleSignInBtn) {
+        googleSignInBtn.disabled = false;
+        googleSignInBtn.style.opacity = '1';
+      }
+
+      if (user) {
+        showLoading("Verifying Account Access Permissions...", "Checking your email against the Firestore allowedUsers list.");
+
+        const userEmail = user.email ? user.email.toLowerCase().trim() : '';
+        const allowed = await isUserEmailAllowed(userEmail);
+        hideLoading();
+
+        if (allowed) {
+          // User email is in allowedUsers Firestore collection!
+          currentUser = {
+            name: user.displayName || user.email.split('@')[0],
+            email: user.email,
+            photoURL: user.photoURL,
+            uid: user.uid
+          };
+          onLoginSuccess(currentUser);
+        } else {
+          // User email is NOT allowed -> Show Access Restricted Screen
+          currentUser = null;
+          showAccessRestrictedScreen(user.email);
+        }
+      } else {
+        // User signed out -> Show Sign-In Overlay
+        currentUser = null;
+        threads = [];
+        activeThreadId = null;
+        showAuthModal();
+      }
+    });
+
+    // 3. Logout Handlers (Works from Top Nav, Sidebar & Access Restricted Screen)
+    const handleFirebaseLogout = async () => {
+      try {
+        await signOut(auth);
+        showToast("Signed out securely.");
+      } catch (err) {
+        console.error("Logout Error:", err);
+        showToast("Error signing out.", "error");
+      }
+    };
+
+    if (sidebarLogoutBtn) sidebarLogoutBtn.addEventListener('click', handleFirebaseLogout);
+    if (topLogoutBtn) topLogoutBtn.addEventListener('click', handleFirebaseLogout);
+    if (restrictedLogoutBtn) restrictedLogoutBtn.addEventListener('click', handleFirebaseLogout);
+  }
+
+  function onLoginSuccess(user) {
+    // Notify backend alert endpoint
+    fetch('/api/notify-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: user.name, email: user.email })
+    }).catch(err => console.error('Login notification error:', err));
+
+    // Update Profile Views & Avatars
+    const initial = (user.name || user.email || 'T').charAt(0).toUpperCase();
+    
+    if (user.photoURL) {
+      sidebarUserAvatar.style.backgroundImage = `url(${user.photoURL})`;
+      sidebarUserAvatar.textContent = '';
+      topUserAvatar.style.backgroundImage = `url(${user.photoURL})`;
+      topUserAvatar.textContent = '';
+    } else {
+      sidebarUserAvatar.style.backgroundImage = 'none';
+      sidebarUserAvatar.textContent = initial;
+      topUserAvatar.style.backgroundImage = 'none';
+      topUserAvatar.textContent = initial;
+    }
+
+    sidebarUserName.textContent = user.name || 'Teacher Account';
+    sidebarUserEmail.textContent = user.email;
+    topUserName.textContent = (user.name || user.email.split('@')[0]).split(' ')[0];
+
+    // Hide Auth & Restricted screens, Show App
+    authOverlay.style.display = 'none';
+    accessRestrictedOverlay.style.display = 'none';
+    appLayout.style.display = 'flex';
+
+    // Load User-Specific Isolated Threads
+    loadThreadsFromStorage();
+    renderSidebar();
+    showHeroView();
+  }
+
+  function showAuthModal() {
+    authOverlay.style.display = 'flex';
+    accessRestrictedOverlay.style.display = 'none';
+    appLayout.style.display = 'none';
+  }
+
+  function showAccessRestrictedScreen(email) {
+    if (restrictedEmailDisplay) restrictedEmailDisplay.textContent = email || 'your account';
+    authOverlay.style.display = 'none';
+    appLayout.style.display = 'none';
+    accessRestrictedOverlay.style.display = 'flex';
   }
 
   // --- MOBILE SIDEBAR DRAWER LOGIC ---
@@ -101,137 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
   }
 
-  // --- AUTHENTICATION & SECURITY SYSTEM ---
-  function checkAuthSession() {
-    try {
-      const storedUser = localStorage.getItem('teacher_ai_current_user');
-      if (storedUser) {
-        currentUser = JSON.parse(storedUser);
-        onLoginSuccess(currentUser, false);
-      } else {
-        showAuthModal();
-      }
-    } catch (e) {
-      showAuthModal();
-    }
-  }
-
-  function showAuthModal() {
-    authOverlay.style.display = 'flex';
-    appLayout.style.display = 'none';
-  }
-
-  function hideAuthModal() {
-    authOverlay.style.display = 'none';
-    appLayout.style.display = 'flex';
-  }
-
-  function setupAuthListeners() {
-    loginTabBtn.addEventListener('click', () => {
-      loginTabBtn.classList.add('active');
-      registerTabBtn.classList.remove('active');
-      loginForm.style.display = 'flex';
-      registerForm.style.display = 'none';
-    });
-
-    registerTabBtn.addEventListener('click', () => {
-      registerTabBtn.classList.add('active');
-      loginTabBtn.classList.remove('active');
-      registerForm.style.display = 'flex';
-      loginForm.style.display = 'none';
-    });
-
-    document.querySelectorAll('.toggle-pwd-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const targetId = btn.getAttribute('data-target');
-        const input = document.getElementById(targetId);
-        if (input.type === 'password') {
-          input.type = 'text';
-          btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
-        } else {
-          input.type = 'password';
-          btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
-        }
-      });
-    });
-
-    loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = document.getElementById('loginEmail').value.trim();
-      if (!email) return;
-
-      const userObj = {
-        name: email.split('@')[0].replace('.', ' '),
-        email: email
-      };
-      onLoginSuccess(userObj, true);
-    });
-
-    registerForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const name = document.getElementById('regName').value.trim();
-      const email = document.getElementById('regEmail').value.trim();
-      if (!email || !name) return;
-
-      const userObj = {
-        name: name,
-        email: email
-      };
-      onLoginSuccess(userObj, true);
-    });
-
-    demoLoginBtn.addEventListener('click', () => {
-      const demoUser = {
-        name: 'Demo Teacher',
-        email: 'teacher@school.edu'
-      };
-      onLoginSuccess(demoUser, true);
-    });
-
-    sidebarLogoutBtn.addEventListener('click', handleLogout);
-    topLogoutBtn.addEventListener('click', handleLogout);
-  }
-
-  function onLoginSuccess(user, notify = true) {
-    currentUser = user;
-    localStorage.setItem('teacher_ai_current_user', JSON.stringify(currentUser));
-
-    fetch('/api/notify-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: currentUser.name, email: currentUser.email })
-    }).catch(err => console.error('Login notification error:', err));
-
-    const initial = (currentUser.name || currentUser.email || 'T').charAt(0).toUpperCase();
-    sidebarUserAvatar.textContent = initial;
-    topUserAvatar.textContent = initial;
-    sidebarUserName.textContent = currentUser.name || 'Teacher Account';
-    sidebarUserEmail.textContent = currentUser.email;
-    topUserName.textContent = currentUser.name || currentUser.email.split('@')[0];
-
-    hideAuthModal();
-
-    loadThreadsFromStorage();
-    renderSidebar();
-    showHeroView();
-
-    if (notify) {
-      showToast(`Welcome back, ${currentUser.name}! Session secured.`);
-    }
-  }
-
-  function handleLogout() {
-    if (confirm('Are you sure you want to log out of your session?')) {
-      localStorage.removeItem('teacher_ai_current_user');
-      currentUser = null;
-      threads = [];
-      activeThreadId = null;
-      showAuthModal();
-      showToast('Logged out securely.');
-    }
-  }
-
-  // --- LOCAL STORAGE LOGIC ---
+  // --- LOCAL STORAGE LOGIC (ISOLATED PER USER EMAIL) ---
   function getUserStorageKey() {
     if (!currentUser || !currentUser.email) return 'teacher_ai_threads_guest';
     const safeEmail = currentUser.email.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -260,23 +293,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- EVENT LISTENERS ---
   function setupEventListeners() {
-    // Sidebar Mobile Drawer Controls
     if (openSidebarBtn) openSidebarBtn.addEventListener('click', openMobileSidebar);
     if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', closeMobileSidebar);
     if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeMobileSidebar);
 
-    // New Topic Button
     newTopicBtn.addEventListener('click', () => {
       showHeroView();
       closeMobileSidebar();
     });
 
-    // History Search
     historySearch.addEventListener('input', (e) => {
       renderSidebar(e.target.value.toLowerCase());
     });
 
-    // Clear All Private History
     clearHistoryBtn.addEventListener('click', () => {
       if (threads.length === 0) return;
       if (confirm(`Are you sure you want to clear private history for ${currentUser.email}? This action cannot be undone.`)) {
@@ -288,7 +317,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Generate Button
     generateBtn.addEventListener('click', () => {
       const val = topicInput.value.trim();
       if (!val) {
@@ -299,7 +327,6 @@ document.addEventListener('DOMContentLoaded', () => {
       handleGenerateNewTopic(val);
     });
 
-    // Enter Key on Topic Input
     topicInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -307,7 +334,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Sample Prompt Chips
     promptChips.forEach(chip => {
       chip.addEventListener('click', () => {
         const topic = chip.getAttribute('data-topic');
@@ -316,11 +342,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // View Switcher (Tabs vs Grid)
     viewTabbedBtn.addEventListener('click', () => setViewMode('tabbed'));
     viewGridBtn.addEventListener('click', () => setViewMode('grid'));
 
-    // Level Tabs Switcher
     levelTabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const targetLevel = btn.getAttribute('data-level');
@@ -334,13 +358,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Copy Full Plan Button
     copyFullPlanBtn.addEventListener('click', copyFullLessonPlan);
-
-    // Print Button
     printPlanBtn.addEventListener('click', () => window.print());
 
-    // Delete Current Thread
     deleteCurrentThreadBtn.addEventListener('click', () => {
       if (!activeThreadId) return;
       if (confirm('Delete this topic thread from your private history?')) {
@@ -348,7 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Section Copy Buttons
     document.querySelectorAll('.copy-sec-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const target = btn.getAttribute('data-target');
@@ -365,10 +384,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Follow-Up Send Button
     sendFollowUpBtn.addEventListener('click', handleSendFollowUp);
 
-    // Follow-Up Input Enter Key
     followUpInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -376,14 +393,66 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Chat Suggestion Chips
     chatChips.forEach(chip => {
       chip.addEventListener('click', () => {
         const msg = chip.getAttribute('data-msg');
+        if (!msg) return; // skip the relatedResourcesBtn (no data-msg)
         followUpInput.value = msg;
         handleSendFollowUp();
       });
     });
+
+    // --- RELATED RESOURCES BUTTON ---
+    const relatedResourcesBtn = document.getElementById('relatedResourcesBtn');
+    const relatedResourcesPanel = document.getElementById('relatedResourcesPanel');
+    const resourcesTopicLabel = document.getElementById('resourcesTopicLabel');
+    const resourcesList = document.getElementById('resourcesList');
+    const closeResourcesPanel = document.getElementById('closeResourcesPanel');
+
+    if (relatedResourcesBtn) {
+      relatedResourcesBtn.addEventListener('click', () => {
+        const thread = threads.find(t => t.id === activeThreadId);
+        const topic = (thread && thread.topic) ? thread.topic : (topicInput.value.trim() || 'teaching');
+        const encoded = encodeURIComponent(topic);
+
+        const links = [
+          {
+            emoji: '🔍',
+            label: 'Search Google for activities',
+            url: `https://www.google.com/search?q=${encoded}+teaching+activities`
+          },
+          {
+            emoji: '📄',
+            label: 'Printable worksheets (Google)',
+            url: `https://www.google.com/search?q=${encoded}+worksheets+printable`
+          },
+          {
+            emoji: '📌',
+            label: 'Pinterest teaching ideas',
+            url: `https://www.pinterest.com/search/pins/?q=${encoded}+teaching+ideas`
+          },
+          {
+            emoji: '🎥',
+            label: 'YouTube lesson explanations',
+            url: `https://www.youtube.com/results?search_query=${encoded}+lesson+explanation`
+          }
+        ];
+
+        resourcesTopicLabel.textContent = topic;
+        resourcesList.innerHTML = links.map(link =>
+          `<li><a class="resource-link" href="${link.url}" target="_blank" rel="noopener noreferrer">${link.emoji} ${link.label}</a></li>`
+        ).join('');
+
+        relatedResourcesPanel.style.display = 'block';
+        relatedResourcesPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    }
+
+    if (closeResourcesPanel) {
+      closeResourcesPanel.addEventListener('click', () => {
+        relatedResourcesPanel.style.display = 'none';
+      });
+    }
   }
 
   // --- API ACTIONS ---
