@@ -129,6 +129,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // --- QUICK ACTION PROMPTS FOR 6 FOLLOW-UP BUTTONS ---
+  function getQuickActionPrompt(action, topic) {
+    const cleanTopic = topic || 'this topic';
+    switch (action) {
+      case 'pop-quiz':
+        return `Generate a 10-question Printable Pop Quiz on the topic "${cleanTopic}". Include a balanced mix of True/False, Fill in the Blanks, and One-word Question & Answer types. Format clearly with question numbers and type labels (e.g., [True/False], [Fill in the Blank], [One-Word Q&A]), laid out cleanly so it can be printed directly for classroom use. Include a complete Answer Key at the end.`;
+
+      case 'mcqs':
+        return `Generate 10 Multiple-Choice Questions (MCQs) on the topic "${cleanTopic}". Each question must have exactly 4 options labeled A, B, C, and D. Number all questions clearly and list the correct answers separately at the end in an Answer Key.`;
+
+      case 'real-life':
+        return `Generate 5 simple real-life examples of "${cleanTopic}". Write them in language appropriate for children, connecting the topic directly to everyday things, household items, or experiences kids recognize.`;
+
+      case 'mini-research':
+        return `Generate exactly ONE take-home mini research and exploration task related to "${cleanTopic}" that students can easily do at home (e.g. observe something, ask a family member, or find an object). Include clear, simple step-by-step instructions on what to do and brief instructions on what to bring back or report to class.`;
+
+      case 'challenge':
+        return `Generate exactly 3 challenging, open-ended questions about "${cleanTopic}". For each question, provide a comprehensive model answer and key discussion talking points, written so they can be used to spark a classroom debate and discussion among students.`;
+
+      default:
+        return '';
+    }
+  }
+
   // --- FIREBASE AUTHENTICATION OBSERVER & HANDLERS ---
   function setupFirebaseAuth() {
     // 1. Google Sign-In Entry Point Button
@@ -372,12 +396,19 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', () => {
         const target = btn.getAttribute('data-target');
         const thread = getActiveThread();
-        if (!thread) return;
+        if (!thread || !thread.initialResponse) return;
 
         let contentText = '';
-        if (target === 'weak') contentText = `WEAK STUDENTS:\nHow to explain: ${thread.initialResponse.weak.howToExplain}\n\nExercises:\n` + thread.initialResponse.weak.exercises.join('\n');
-        if (target === 'medium') contentText = `MEDIUM STUDENTS:\nHow to explain: ${thread.initialResponse.medium.howToExplain}\n\nExercises:\n` + thread.initialResponse.medium.exercises.join('\n');
-        if (target === 'intelligent') contentText = `INTELLIGENT STUDENTS:\nHow to explain: ${thread.initialResponse.intelligent.howToExplain}\n\nExercises:\n` + thread.initialResponse.intelligent.exercises.join('\n');
+        const data = thread.initialResponse;
+        if (target === 'weak') {
+          contentText = `WEAK STUDENTS:\nHow to explain: ${data.weak?.howToExplain || ''}\n\nExercises:\n` + (data.weak?.exercises || []).join('\n');
+        } else if (target === 'medium') {
+          contentText = `MEDIUM STUDENTS:\nHow to explain: ${data.medium?.howToExplain || ''}\n\nExercises:\n` + (data.medium?.exercises || []).join('\n');
+        } else if (target === 'intelligent') {
+          contentText = `INTELLIGENT STUDENTS:\nHow to explain: ${data.intelligent?.howToExplain || ''}\n\nExercises:\n` + (data.intelligent?.exercises || []).join('\n');
+        } else if (target === 'strategy') {
+          contentText = `HOW TO TEACH THIS TOPIC (GENERAL STRATEGY):\n${data.teachingTips || ''}`;
+        }
 
         copyToClipboard(contentText);
         showToast(`Copied ${target.toUpperCase()} section to clipboard!`);
@@ -393,12 +424,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    chatChips.forEach(chip => {
+    // --- QUICK ACTION CHIPS (6 BUTTONS) ---
+    document.querySelectorAll('.chat-chip[data-action]').forEach(chip => {
       chip.addEventListener('click', () => {
-        const msg = chip.getAttribute('data-msg');
-        if (!msg) return; // skip the relatedResourcesBtn (no data-msg)
-        followUpInput.value = msg;
-        handleSendFollowUp();
+        const action = chip.getAttribute('data-action');
+        if (!action) return;
+
+        if (sendFollowUpBtn.disabled) {
+          showToast('Please wait for the current response to complete...', 'error');
+          return;
+        }
+
+        const thread = getActiveThread();
+        const topic = (thread && thread.topic) ? thread.topic : (topicInput.value.trim() || 'this topic');
+        const promptText = getQuickActionPrompt(action, topic);
+        if (promptText) {
+          followUpInput.value = promptText;
+          handleSendFollowUp();
+        }
       });
     });
 
@@ -669,10 +712,31 @@ document.addEventListener('DOMContentLoaded', () => {
       renderedHTML = marked.parse(msgObj.content);
     }
 
-    bubble.innerHTML = `
-      <div class="chat-avatar">${icon}</div>
-      <div class="chat-content">${renderedHTML}</div>
-    `;
+    if (msgObj.sender === 'assistant') {
+      bubble.innerHTML = `
+        <div class="chat-avatar">${icon}</div>
+        <div class="chat-content">
+          <div class="bubble-header-bar">
+            <span class="bubble-tag"><i class="fa-solid fa-sparkles"></i> Generated Activity / Response</span>
+            <button class="copy-bubble-btn touch-target" title="Copy this activity in full"><i class="fa-solid fa-copy"></i> Copy</button>
+          </div>
+          <div class="bubble-body">${renderedHTML}</div>
+        </div>
+      `;
+
+      const copyBtn = bubble.querySelector('.copy-bubble-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          copyToClipboard(msgObj.content);
+          showToast('Activity copied to clipboard!');
+        });
+      }
+    } else {
+      bubble.innerHTML = `
+        <div class="chat-avatar">${icon}</div>
+        <div class="chat-content">${renderedHTML}</div>
+      `;
+    }
 
     chatMessagesList.appendChild(bubble);
   }
@@ -748,25 +812,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function copyFullLessonPlan() {
     const thread = getActiveThread();
-    if (!thread) return;
+    if (!thread || !thread.initialResponse) return;
 
     const data = thread.initialResponse;
-    let fullText = `=== TEACHER AI - LESSON PLAN ===\nTOPIC: ${thread.topic.toUpperCase()}\n\n`;
-    fullText += `GREETING:\n${data.greeting}\n\n`;
+    let fullText = `=== TEACHER AI - LESSON PLAN ===\nTOPIC: ${(thread.topic || '').toUpperCase()}\n\n`;
+    if (data.greeting) {
+      fullText += `GREETING:\n${data.greeting}\n\n`;
+    }
     
-    fullText += `--- 1. WEAK STUDENTS ---\nHow to Explain: ${data.weak.howToExplain}\nExercises:\n`;
-    data.weak.exercises.forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
+    // 1. Weak Students
+    const weak = data.weak || {};
+    fullText += `--- 1. WEAK STUDENTS ---\nHow to Explain: ${weak.howToExplain || ''}\nExercises:\n`;
+    (weak.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
-    fullText += `\n--- 2. MEDIUM STUDENTS ---\nHow to Explain: ${data.medium.howToExplain}\nExercises:\n`;
-    data.medium.exercises.forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
+    // 2. Medium Students
+    const medium = data.medium || {};
+    fullText += `\n--- 2. MEDIUM STUDENTS ---\nHow to Explain: ${medium.howToExplain || ''}\nExercises:\n`;
+    (medium.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
-    fullText += `\n--- 3. INTELLIGENT STUDENTS ---\nHow to Explain: ${data.intelligent.howToExplain}\nExercises:\n`;
-    data.intelligent.exercises.forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
+    // 3. Intelligent Students
+    const intelligent = data.intelligent || {};
+    fullText += `\n--- 3. INTELLIGENT STUDENTS ---\nHow to Explain: ${intelligent.howToExplain || ''}\nExercises:\n`;
+    (intelligent.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
-    fullText += `\n--- HOW TO TEACH THIS TOPIC (STRATEGY) ---\n${data.teachingTips}\n`;
+    // 4. Teaching Strategy
+    if (data.teachingTips) {
+      fullText += `\n--- HOW TO TEACH THIS TOPIC (GENERAL STRATEGY) ---\n${data.teachingTips}\n`;
+    }
+
+    // 5. Follow-ups & Generated Quick Actions (Pop Quiz, MCQs, Real-life examples, Research task, Challenge questions, etc.)
+    if (Array.isArray(thread.messages) && thread.messages.length > 0) {
+      const assistantMsgs = thread.messages.filter(m => m.sender === 'assistant');
+      if (assistantMsgs.length > 0) {
+        fullText += `\n========================================\n=== GENERATED ACTIVITIES & RESOURCES ===\n========================================\n`;
+        assistantMsgs.forEach((msg, idx) => {
+          fullText += `\n--- ACTIVITY #${idx + 1} ---\n${msg.content}\n`;
+        });
+      }
+    }
 
     copyToClipboard(fullText);
-    showToast('Full lesson plan copied to clipboard!');
+    showToast('Full lesson plan & activities copied to clipboard!');
   }
 
   // --- HELPERS & UTILS ---
@@ -802,14 +888,30 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).catch(() => {
+    if (!text) return;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).catch(() => fallbackCopyText(text));
+    } else {
+      fallbackCopyText(text);
+    }
+  }
+
+  function fallbackCopyText(text) {
+    try {
       const textarea = document.createElement('textarea');
       textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '0';
+      textarea.style.opacity = '0';
       document.body.appendChild(textarea);
+      textarea.focus();
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-    });
+    } catch (err) {
+      console.error('Copy fallback failed:', err);
+    }
   }
 
   function escapeHtml(str) {

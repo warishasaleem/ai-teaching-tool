@@ -359,8 +359,11 @@
           <!-- 3. HOW TO TEACH THIS TOPIC (GENERAL STRATEGY) -->
           <div class="strategy-card">
             <div class="strategy-header">
-              <i class="fa-solid fa-compass-drafting"></i>
-              <h3>HOW TO TEACH THIS TOPIC (General Teaching Strategy)</h3>
+              <div class="strategy-title-group">
+                <i class="fa-solid fa-compass-drafting"></i>
+                <h3>HOW TO TEACH THIS TOPIC (General Teaching Strategy)</h3>
+              </div>
+              <button class="copy-sec-btn touch-target" data-target="strategy" title="Copy Strategy Text"><i class="fa-solid fa-copy"></i></button>
             </div>
             <p id="teachingTipsText">Loading general teaching tips...</p>
           </div>
@@ -377,24 +380,27 @@
             <!-- Dynamic follow-up message bubbles -->
           </div>
 
-          <!-- FOLLOW-UP PROMPT SUGGESTIONS CHIPS -->
+          <!-- FOLLOW-UP PROMPT SUGGESTIONS CHIPS (6 QUICK ACTIONS) -->
           <div class="chat-suggestions">
             <span class="suggestions-label">Quick Follow-up Actions:</span>
             <div class="suggestion-chips">
-              <button class="chat-chip touch-target" data-msg="Make the Weak Students section even simpler with relatable real-world analogies.">
-                👶 Simplify Weak Section
-              </button>
-              <button class="chat-chip touch-target" data-msg="Add 3 more Multiple Choice Questions (MCQs) for Medium Students.">
-                📝 +3 MCQs for Medium
-              </button>
-              <button class="chat-chip touch-target" data-msg="Give me 2 real-world project/research prompts for Intelligent Students.">
-                🚀 Project Prompts for Intelligent
-              </button>
-              <button class="chat-chip touch-target" data-msg="Create a quick 5-question pop quiz with answer keys for this topic.">
+              <button class="chat-chip touch-target" data-action="pop-quiz" title="Generate 10 mixed-format questions with Answer Key">
                 🎯 Printable Pop Quiz
               </button>
-              <button class="chat-chip touch-target" id="relatedResourcesBtn">
+              <button class="chat-chip touch-target" data-action="mcqs" title="Generate 10 Multiple Choice Questions with Answer Key">
+                📝 MCQs
+              </button>
+              <button class="chat-chip touch-target" data-action="real-life" title="Generate 5 child-friendly real-life examples">
+                🌍 Real-Life Examples
+              </button>
+              <button class="chat-chip touch-target" data-action="mini-research" title="Generate 1 take-home exploration task">
+                🔬 Mini Research Task
+              </button>
+              <button class="chat-chip touch-target" id="relatedResourcesBtn" title="Instant Google, Pinterest & YouTube links">
                 🔗 Related Resources
+              </button>
+              <button class="chat-chip touch-target" data-action="challenge" title="Generate 3 debate questions with model answers">
+                💡 Challenge Questions
               </button>
             </div>
 
