@@ -26,6 +26,7 @@ const userLoginLogs = [];
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/admin', express.static(path.join(__dirname, 'public')));
 
 // Configure Nodemailer Transporter
 let transporter = nodemailer.createTransport({
