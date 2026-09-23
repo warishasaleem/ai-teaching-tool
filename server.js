@@ -158,7 +158,12 @@ app.post('/api/notify-login', async (req, res) => {
   }
 });
 
-// 2. Admin Stats Endpoint
+// 2. Admin Users Dashboard Route
+app.get('/admin/users', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// 2b. Admin Stats Endpoint
 app.get('/api/admin/stats', (req, res) => {
   return res.json({
     success: true,

@@ -1,4 +1,4 @@
-// TEACHER AI - FIREBASE GOOGLE AUTHENTICATION & FIRESTORE ALLOWLIST ACCESS CONTROL
+// TEACHER AI - FIREBASE GOOGLE AUTHENTICATION & USER ACTIVITY LOGS
 import { 
   auth, 
   db,
@@ -8,10 +8,15 @@ import {
   onAuthStateChanged,
   doc,
   getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+  increment,
   collection,
   query,
   where,
-  getDocs
+  getDocs,
+  ADMIN_EMAILS
 } from "./firebaseConfig.js";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -102,30 +107,38 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
   }
 
-  // --- FIRESTORE EMAIL ALLOWLIST ACCESS CHECK ---
-  async function isUserEmailAllowed(userEmail) {
-    if (!userEmail) return false;
-    const cleanEmail = userEmail.toLowerCase().trim();
+  // --- FIRESTORE USER ACTIVITY LOGGING ("userLogs" collection) ---
+  async function trackUserLogin(user) {
+    if (!user || !user.email) return;
+    const cleanEmail = user.email.toLowerCase().trim();
 
     try {
-      // 1. Direct Document ID check (collection: "allowedUsers", doc ID: "teacher@school.edu")
-      const docRef = doc(db, "allowedUsers", cleanEmail);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return true;
-      }
+      const userLogRef = doc(db, "userLogs", cleanEmail);
+      const docSnap = await getDoc(userLogRef);
 
-      // 2. Query check (field "email" == cleanEmail)
-      const q = query(collection(db, "allowedUsers"), where("email", "==", cleanEmail));
-      const querySnap = await getDocs(q);
-      if (!querySnap.empty) {
-        return true;
+      if (!docSnap.exists()) {
+        // First time this email has logged in: set firstLoginAt (never overwritten), lastLoginAt, loginCount = 1
+        await setDoc(userLogRef, {
+          email: cleanEmail,
+          firstLoginAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp(),
+          loginCount: 1,
+          name: user.displayName || cleanEmail.split('@')[0],
+          photoURL: user.photoURL || ''
+        });
+        console.log(`[userLogs] Initial login logged for ${cleanEmail}`);
+      } else {
+        // Subsequent login: update lastLoginAt and increment loginCount by 1
+        await updateDoc(userLogRef, {
+          lastLoginAt: serverTimestamp(),
+          loginCount: increment(1),
+          name: user.displayName || docSnap.data().name || cleanEmail.split('@')[0],
+          photoURL: user.photoURL || docSnap.data().photoURL || ''
+        });
+        console.log(`[userLogs] Updated login record for ${cleanEmail}`);
       }
-
-      return false;
     } catch (err) {
-      console.warn("Firestore allowlist lookup error:", err);
-      return false;
+      console.warn("Failed to write to userLogs Firestore collection:", err);
     }
   }
 
@@ -173,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // 2. Firebase Auth State Observer with Firestore Allowlist Verification
+    // 2. Firebase Auth State Observer (Every signed-in user gets full access immediately)
     onAuthStateChanged(auth, async (user) => {
       if (googleSignInBtn) {
         googleSignInBtn.disabled = false;
@@ -181,26 +194,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (user) {
-        showLoading("Verifying Account Access Permissions...", "Checking your email against the Firestore allowedUsers list.");
+        currentUser = {
+          name: user.displayName || user.email.split('@')[0],
+          email: user.email,
+          photoURL: user.photoURL,
+          uid: user.uid
+        };
 
-        const userEmail = user.email ? user.email.toLowerCase().trim() : '';
-        const allowed = await isUserEmailAllowed(userEmail);
-        hideLoading();
+        // Track user login in Firestore "userLogs" collection
+        trackUserLogin(user);
 
-        if (allowed) {
-          // User email is in allowedUsers Firestore collection!
-          currentUser = {
-            name: user.displayName || user.email.split('@')[0],
-            email: user.email,
-            photoURL: user.photoURL,
-            uid: user.uid
-          };
-          onLoginSuccess(currentUser);
-        } else {
-          // User email is NOT allowed -> Show Access Restricted Screen
-          currentUser = null;
-          showAccessRestrictedScreen(user.email);
-        }
+        // Immediate full access to the app
+        onLoginSuccess(currentUser);
       } else {
         // User signed out -> Show Sign-In Overlay
         currentUser = null;
@@ -253,9 +258,17 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebarUserEmail.textContent = user.email;
     topUserName.textContent = (user.name || user.email.split('@')[0]).split(' ')[0];
 
+    // Show Admin Link ONLY if user is warikhan1995@gmail.com
+    const cleanEmail = (user.email || '').toLowerCase().trim();
+    const isAdmin = cleanEmail === 'warikhan1995@gmail.com';
+    const adminNavBtn = document.getElementById('adminUsersNavBtn');
+    if (adminNavBtn) {
+      adminNavBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
+
     // Hide Auth & Restricted screens, Show App
     authOverlay.style.display = 'none';
-    accessRestrictedOverlay.style.display = 'none';
+    if (accessRestrictedOverlay) accessRestrictedOverlay.style.display = 'none';
     appLayout.style.display = 'flex';
 
     // Load User-Specific Isolated Threads

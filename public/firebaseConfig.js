@@ -11,9 +11,14 @@ import {
   getFirestore, 
   doc, 
   getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+  increment,
   collection,
   query,
   where,
+  orderBy,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -26,6 +31,11 @@ const firebaseConfig = {
   appId: "1:689389776404:web:2125c28d0ea68c3bde4101",
   measurementId: "G-YT6Q1B7R6K"
 };
+
+// Allowed admin emails for /admin/users dashboard
+const ADMIN_EMAILS = [
+  "warikhan1995@gmail.com"
+];
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -45,8 +55,14 @@ export {
   onAuthStateChanged,
   doc,
   getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+  increment,
   collection,
   query,
   where,
-  getDocs
+  orderBy,
+  getDocs,
+  ADMIN_EMAILS
 };
