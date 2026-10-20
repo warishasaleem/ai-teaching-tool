@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="ta-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="64" height="64" rx="16" fill="#0b0d14"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#glow)" stroke="#6366f1" stroke-width="1.5" stroke-opacity="0.4"/>
+  <!-- Inner badge -->
+  <rect x="8" y="8" width="48" height="48" rx="12" fill="url(#ta-grad)"/>
+  <!-- Graduation Cap Top Accent -->
+  <path d="M32 14 L46 20 L32 26 L18 20 Z" fill="#ffffff" opacity="0.95"/>
+  <path d="M43 22.5 L43 28.5 C43 28.5 40 31 32 31 C24 31 21 28.5 21 28.5 L21 22.5" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.95"/>
+  <circle cx="47" cy="23" r="1.5" fill="#facc15"/>
+  <!-- Monogram TA Text -->
+  <text x="32" y="47" font-family="'Outfit', 'Inter', -apple-system, sans-serif" font-weight="900" font-size="20" fill="#ffffff" text-anchor="middle" letter-spacing="-0.5">TA</text>
+</svg>

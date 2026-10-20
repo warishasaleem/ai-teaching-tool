@@ -17,7 +17,7 @@ const GROQ_MODELS = [
   'groq/compound'
 ];
 
-const ADMIN_EMAIL = 'warikhan1995@gmail.com';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'warikhan1995@gmail.com';
 
 // In-Memory Stats & Logs
 let totalLoginCount = 0;
@@ -25,6 +25,13 @@ const userLoginLogs = [];
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// Favicon route - ensure /favicon.ico does not return 404
+app.get('/favicon.ico', (req, res) => {
+  res.type('image/svg+xml');
+  res.sendFile(path.join(__dirname, 'public', 'favicon.svg'));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/admin', express.static(path.join(__dirname, 'public')));
 
@@ -121,7 +128,7 @@ app.post('/api/notify-login', async (req, res) => {
     userLoginLogs.unshift(logEntry);
     console.log(`🔔 NEW USER LOGIN ALERT #${totalLoginCount}: ${name} (${email}) at ${timestamp}`);
 
-    // Send Email Alert to warikhan1995@gmail.com
+    // Send Email Alert to ADMIN_EMAIL
     const mailOptions = {
       from: '"TEACHER AI Alert" <no-reply@teacher-ai.org>',
       to: ADMIN_EMAIL,
@@ -164,14 +171,21 @@ app.get('/admin/users', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// 2b. Admin Stats Endpoint
+// 2b. Admin Stats Endpoint (does not expose raw admin email)
 app.get('/api/admin/stats', (req, res) => {
   return res.json({
     success: true,
-    adminEmail: ADMIN_EMAIL,
     totalLoginCount: totalLoginCount,
     recentLogins: userLoginLogs.slice(0, 50)
   });
+});
+
+// 2c. Admin Verify Endpoint (checks if current email is the authorized administrator)
+app.post('/api/admin/verify', (req, res) => {
+  const { email } = req.body || {};
+  const cleanEmail = (email || '').toLowerCase().trim();
+  const isAdmin = cleanEmail.length > 0 && cleanEmail === ADMIN_EMAIL.toLowerCase().trim();
+  return res.json({ success: true, isAdmin });
 });
 
 // 3. Initial Topic Generation Endpoint
@@ -183,14 +197,14 @@ app.post('/api/generate', async (req, res) => {
     }
 
     const systemPrompt = `You are TEACHER AI, a world-class AI teaching assistant built for educators.
-Your goal is to generate differentiated teaching content tailored for 3 student learning levels (Weak, Medium, Intelligent).
+Your goal is to generate differentiated teaching content tailored for 3 student learning levels (Beginner, Intermediate, Advanced).
 
 MUST FOLLOW THIS EXACT RESPONSE STRUCTURE & FORMAT:
 1. GREETING — short, warm opening line addressing the teacher.
 2. THREE CATEGORY SECTIONS clearly structured:
-   - "Weak Students": simpler language, basic exercises, step-by-step breakdown.
-   - "Medium Students": moderate difficulty, balanced explanation + practice.
-   - "Intelligent Students": advanced exercises, deeper conceptual questions.
+   - "Beginner": simpler language, basic exercises, step-by-step breakdown.
+   - "Intermediate": moderate difficulty, balanced explanation + practice.
+   - "Advanced": advanced exercises, deeper conceptual questions.
    
    EACH category must include:
    - "howToExplain": Short explanation of how to present the topic to this student level.
@@ -202,7 +216,7 @@ STRICT JSON OUTPUT REQUIREMENT:
 Return ONLY a valid raw JSON object matching this exact schema:
 {
   "greeting": "Short warm opening line...",
-  "weak": {
+  "beginner": {
     "howToExplain": "...",
     "exercises": [
       "1. ...",
@@ -212,7 +226,7 @@ Return ONLY a valid raw JSON object matching this exact schema:
       "5. ..."
     ]
   },
-  "medium": {
+  "intermediate": {
     "howToExplain": "...",
     "exercises": [
       "1. ...",
@@ -222,7 +236,7 @@ Return ONLY a valid raw JSON object matching this exact schema:
       "5. ..."
     ]
   },
-  "intelligent": {
+  "advanced": {
     "howToExplain": "...",
     "exercises": [
       "1. ...",
@@ -263,21 +277,33 @@ Return ONLY a valid raw JSON object matching this exact schema:
       }
     }
 
-    // Ensure array structure and fallbacks
-    const fallbackCategory = (catName, defaultHow) => ({
-      howToExplain: structuredData[catName]?.howToExplain || defaultHow,
-      exercises: Array.isArray(structuredData[catName]?.exercises) && structuredData[catName].exercises.length >= 5
-        ? structuredData[catName].exercises
-        : (structuredData[catName]?.exercises || []).concat(
-            Array.from({ length: Math.max(0, 5 - (structuredData[catName]?.exercises?.length || 0)) }, (_, i) => `Exercise ${i + 1} for ${catName} level on ${topic}`)
-          )
-    });
+    // Ensure array structure and fallbacks (supports both beginner/weak, intermediate/medium, advanced/intelligent)
+    const fallbackCategory = (primaryKey, legacyKey, defaultHow) => {
+      const catObj = structuredData[primaryKey] || structuredData[legacyKey] || {};
+      const exercisesList = Array.isArray(catObj.exercises) && catObj.exercises.length >= 5
+        ? catObj.exercises
+        : (catObj.exercises || []).concat(
+            Array.from({ length: Math.max(0, 5 - (catObj.exercises?.length || 0)) }, (_, i) => `Exercise ${i + 1} for ${primaryKey} level on ${topic}`)
+          );
+      return {
+        howToExplain: catObj.howToExplain || defaultHow,
+        exercises: exercisesList
+      };
+    };
+
+    const beginnerData = fallbackCategory('beginner', 'weak', 'Break down concepts into simple visual parts.');
+    const intermediateData = fallbackCategory('intermediate', 'medium', 'Combine core explanations with practical practice questions.');
+    const advancedData = fallbackCategory('advanced', 'intelligent', 'Challenge students with critical thinking and real-world applications.');
 
     const responseJSON = {
       greeting: structuredData.greeting || `Hello Teacher! Here is your structured teaching guide for "${topic}".`,
-      weak: fallbackCategory('weak', 'Break down concepts into simple visual parts.'),
-      medium: fallbackCategory('medium', 'Combine core explanations with practical practice questions.'),
-      intelligent: fallbackCategory('intelligent', 'Challenge students with critical thinking and real-world applications.'),
+      beginner: beginnerData,
+      intermediate: intermediateData,
+      advanced: advancedData,
+      // Legacy aliases for backward compatibility with previously saved client threads
+      weak: beginnerData,
+      medium: intermediateData,
+      intelligent: advancedData,
       teachingTips: structuredData.teachingTips || 'Engage students with interactive discussions, quick checks for understanding, and practical examples.'
     };
 
@@ -301,9 +327,9 @@ The teacher is currently asking follow-up questions about the topic: "${topic ||
 
 Context of Initial Differentiated Teaching Plan provided earlier:
 Greeting: ${initialResponse?.greeting || ''}
-Weak Level How To Explain: ${initialResponse?.weak?.howToExplain || ''}
-Medium Level How To Explain: ${initialResponse?.medium?.howToExplain || ''}
-Intelligent Level How To Explain: ${initialResponse?.intelligent?.howToExplain || ''}
+Beginner Level How To Explain: ${initialResponse?.beginner?.howToExplain || initialResponse?.weak?.howToExplain || ''}
+Intermediate Level How To Explain: ${initialResponse?.intermediate?.howToExplain || initialResponse?.medium?.howToExplain || ''}
+Advanced Level How To Explain: ${initialResponse?.advanced?.howToExplain || initialResponse?.intelligent?.howToExplain || ''}
 Teaching Tips: ${initialResponse?.teachingTips || ''}
 
 Instructions:
@@ -340,6 +366,18 @@ Instructions:
   } catch (err) {
     console.error('Error in /api/followup:', err);
     return res.status(500).json({ success: false, error: err.message || 'Server error processing follow-up.' });
+  }
+});
+
+// 5. Catch-All Route: Branded 404 Page matching dark theme
+app.use((req, res) => {
+  res.status(404);
+  if (req.accepts('html')) {
+    res.sendFile(path.join(__dirname, 'public', '404.html'));
+  } else if (req.accepts('json')) {
+    res.json({ success: false, error: 'Not Found' });
+  } else {
+    res.type('txt').send('404 Not Found');
   }
 });
 

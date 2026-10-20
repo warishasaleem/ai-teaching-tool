@@ -15,8 +15,7 @@ import {
   collection,
   query,
   where,
-  getDocs,
-  ADMIN_EMAILS
+  getDocs
 } from "./firebaseConfig.js";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -258,12 +257,23 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebarUserEmail.textContent = user.email;
     topUserName.textContent = (user.name || user.email.split('@')[0]).split(' ')[0];
 
-    // Show Admin Link ONLY if user is warikhan1995@gmail.com
+    // Show Admin Link if user is authorized administrator (verified server-side)
     const cleanEmail = (user.email || '').toLowerCase().trim();
-    const isAdmin = cleanEmail === 'warikhan1995@gmail.com';
     const adminNavBtn = document.getElementById('adminUsersNavBtn');
     if (adminNavBtn) {
-      adminNavBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+      fetch('/api/admin/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail })
+      })
+      .then(res => res.json())
+      .then(data => {
+        adminNavBtn.style.display = data.isAdmin ? 'inline-flex' : 'none';
+      })
+      .catch(err => {
+        console.warn('Admin check error:', err);
+        adminNavBtn.style.display = 'none';
+      });
     }
 
     // Hide Auth & Restricted screens, Show App
@@ -274,7 +284,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load User-Specific Isolated Threads
     loadThreadsFromStorage();
     renderSidebar();
-    showHeroView();
+
+    if (threads.length > 0) {
+      loadThread(threads[0].id);
+    } else {
+      showHeroView();
+    }
   }
 
   function showAuthModal() {
@@ -379,8 +394,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    viewTabbedBtn.addEventListener('click', () => setViewMode('tabbed'));
-    viewGridBtn.addEventListener('click', () => setViewMode('grid'));
+    // Top Navigation View Switcher (Tabs vs Grid)
+    if (viewTabbedBtn) viewTabbedBtn.addEventListener('click', () => setViewMode('tabbed'));
+    if (viewGridBtn) viewGridBtn.addEventListener('click', () => setViewMode('grid'));
+
+    // In-Card Plan Toolbar View Switcher
+    const planViewTabbedBtn = document.getElementById('planViewTabbedBtn');
+    const planViewGridBtn = document.getElementById('planViewGridBtn');
+    if (planViewTabbedBtn) planViewTabbedBtn.addEventListener('click', () => setViewMode('tabbed'));
+    if (planViewGridBtn) planViewGridBtn.addEventListener('click', () => setViewMode('grid'));
 
     levelTabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -389,14 +411,21 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.classList.add('active');
 
         [weakCard, mediumCard, intelligentCard].forEach(card => card.classList.remove('active'));
-        if (targetLevel === 'weak') weakCard.classList.add('active');
-        if (targetLevel === 'medium') mediumCard.classList.add('active');
-        if (targetLevel === 'intelligent') intelligentCard.classList.add('active');
+        if (targetLevel === 'weak' || targetLevel === 'beginner') weakCard.classList.add('active');
+        if (targetLevel === 'medium' || targetLevel === 'intermediate') mediumCard.classList.add('active');
+        if (targetLevel === 'intelligent' || targetLevel === 'advanced') intelligentCard.classList.add('active');
       });
     });
 
-    copyFullPlanBtn.addEventListener('click', copyFullLessonPlan);
-    printPlanBtn.addEventListener('click', () => window.print());
+    // Copy Full Plan Buttons (Both Top Nav and In-Card Toolbar)
+    if (copyFullPlanBtn) copyFullPlanBtn.addEventListener('click', copyFullLessonPlan);
+    const planCopyFullBtn = document.getElementById('planCopyFullBtn');
+    if (planCopyFullBtn) planCopyFullBtn.addEventListener('click', copyFullLessonPlan);
+
+    // Print Plan Buttons (Both Top Nav and In-Card Toolbar)
+    if (printPlanBtn) printPlanBtn.addEventListener('click', () => window.print());
+    const planPrintBtn = document.getElementById('planPrintBtn');
+    if (planPrintBtn) planPrintBtn.addEventListener('click', () => window.print());
 
     deleteCurrentThreadBtn.addEventListener('click', () => {
       if (!activeThreadId) return;
@@ -413,18 +442,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let contentText = '';
         const data = thread.initialResponse;
-        if (target === 'weak') {
-          contentText = `WEAK STUDENTS:\nHow to explain: ${data.weak?.howToExplain || ''}\n\nExercises:\n` + (data.weak?.exercises || []).join('\n');
-        } else if (target === 'medium') {
-          contentText = `MEDIUM STUDENTS:\nHow to explain: ${data.medium?.howToExplain || ''}\n\nExercises:\n` + (data.medium?.exercises || []).join('\n');
-        } else if (target === 'intelligent') {
-          contentText = `INTELLIGENT STUDENTS:\nHow to explain: ${data.intelligent?.howToExplain || ''}\n\nExercises:\n` + (data.intelligent?.exercises || []).join('\n');
+        const beginner = data.beginner || data.weak || {};
+        const intermediate = data.intermediate || data.medium || {};
+        const advanced = data.advanced || data.intelligent || {};
+
+        if (target === 'weak' || target === 'beginner') {
+          contentText = `BEGINNER:\nHow to explain: ${beginner.howToExplain || ''}\n\nExercises:\n` + (beginner.exercises || []).join('\n');
+        } else if (target === 'medium' || target === 'intermediate') {
+          contentText = `INTERMEDIATE:\nHow to explain: ${intermediate.howToExplain || ''}\n\nExercises:\n` + (intermediate.exercises || []).join('\n');
+        } else if (target === 'intelligent' || target === 'advanced') {
+          contentText = `ADVANCED:\nHow to explain: ${advanced.howToExplain || ''}\n\nExercises:\n` + (advanced.exercises || []).join('\n');
         } else if (target === 'strategy') {
           contentText = `HOW TO TEACH THIS TOPIC (GENERAL STRATEGY):\n${data.teachingTips || ''}`;
         }
 
         copyToClipboard(contentText);
-        showToast(`Copied ${target.toUpperCase()} section to clipboard!`);
+        const displayLabel = (target === 'weak' || target === 'beginner') ? 'BEGINNER'
+          : (target === 'medium' || target === 'intermediate') ? 'INTERMEDIATE'
+          : (target === 'intelligent' || target === 'advanced') ? 'ADVANCED'
+          : target.toUpperCase();
+        showToast(`Copied ${displayLabel} section to clipboard!`);
       });
     });
 
@@ -513,7 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- API ACTIONS ---
   async function handleGenerateNewTopic(topicName) {
-    showLoading('Generating Differentiated Lesson Plan...', 'Creating tailored explanations & 5+ exercises for Weak, Medium, and Intelligent tiers.');
+    showLoading('Generating Differentiated Lesson Plan...', 'Creating tailored explanations & 5+ exercises for Beginner, Intermediate, and Advanced tiers.');
     
     try {
       const response = await fetch('/api/generate', {
@@ -664,14 +701,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const data = thread.initialResponse;
     greetingText.textContent = data.greeting || `Hello Teacher! Here is your differentiated plan for "${thread.topic}".`;
 
-    weakHowToExplain.textContent = data.weak?.howToExplain || 'No explanation available.';
-    renderExerciseList(weakExercises, data.weak?.exercises || []);
+    const beginner = data.beginner || data.weak || {};
+    const intermediate = data.intermediate || data.medium || {};
+    const advanced = data.advanced || data.intelligent || {};
 
-    mediumHowToExplain.textContent = data.medium?.howToExplain || 'No explanation available.';
-    renderExerciseList(mediumExercises, data.medium?.exercises || []);
+    weakHowToExplain.textContent = beginner.howToExplain || 'No explanation available.';
+    renderExerciseList(weakExercises, beginner.exercises || []);
 
-    intelligentHowToExplain.textContent = data.intelligent?.howToExplain || 'No explanation available.';
-    renderExerciseList(intelligentExercises, data.intelligent?.exercises || []);
+    mediumHowToExplain.textContent = intermediate.howToExplain || 'No explanation available.';
+    renderExerciseList(mediumExercises, intermediate.exercises || []);
+
+    intelligentHowToExplain.textContent = advanced.howToExplain || 'No explanation available.';
+    renderExerciseList(intelligentExercises, advanced.exercises || []);
 
     teachingTipsText.textContent = data.teachingTips || 'No general strategy tips provided.';
 
@@ -808,15 +849,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setViewMode(mode) {
     viewMode = mode;
+    const planViewTabbedBtn = document.getElementById('planViewTabbedBtn');
+    const planViewGridBtn = document.getElementById('planViewGridBtn');
+
     if (mode === 'tabbed') {
-      viewTabbedBtn.classList.add('active');
-      viewGridBtn.classList.remove('active');
+      if (viewTabbedBtn) viewTabbedBtn.classList.add('active');
+      if (viewGridBtn) viewGridBtn.classList.remove('active');
+      if (planViewTabbedBtn) planViewTabbedBtn.classList.add('active');
+      if (planViewGridBtn) planViewGridBtn.classList.remove('active');
+
       levelCardsContainer.classList.add('tabbed-mode');
       levelCardsContainer.classList.remove('grid-mode');
       levelTabsHeader.style.display = 'flex';
     } else {
-      viewGridBtn.classList.add('active');
-      viewTabbedBtn.classList.remove('active');
+      if (viewGridBtn) viewGridBtn.classList.add('active');
+      if (viewTabbedBtn) viewTabbedBtn.classList.remove('active');
+      if (planViewGridBtn) planViewGridBtn.classList.add('active');
+      if (planViewTabbedBtn) planViewTabbedBtn.classList.remove('active');
+
       levelCardsContainer.classList.remove('tabbed-mode');
       levelCardsContainer.classList.add('grid-mode');
       levelTabsHeader.style.display = 'none';
@@ -833,20 +883,20 @@ document.addEventListener('DOMContentLoaded', () => {
       fullText += `GREETING:\n${data.greeting}\n\n`;
     }
     
-    // 1. Weak Students
-    const weak = data.weak || {};
-    fullText += `--- 1. WEAK STUDENTS ---\nHow to Explain: ${weak.howToExplain || ''}\nExercises:\n`;
-    (weak.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
+    // 1. Beginner
+    const beginner = data.beginner || data.weak || {};
+    fullText += `--- 1. BEGINNER ---\nHow to Explain: ${beginner.howToExplain || ''}\nExercises:\n`;
+    (beginner.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
-    // 2. Medium Students
-    const medium = data.medium || {};
-    fullText += `\n--- 2. MEDIUM STUDENTS ---\nHow to Explain: ${medium.howToExplain || ''}\nExercises:\n`;
-    (medium.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
+    // 2. Intermediate
+    const intermediate = data.intermediate || data.medium || {};
+    fullText += `\n--- 2. INTERMEDIATE ---\nHow to Explain: ${intermediate.howToExplain || ''}\nExercises:\n`;
+    (intermediate.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
-    // 3. Intelligent Students
-    const intelligent = data.intelligent || {};
-    fullText += `\n--- 3. INTELLIGENT STUDENTS ---\nHow to Explain: ${intelligent.howToExplain || ''}\nExercises:\n`;
-    (intelligent.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
+    // 3. Advanced
+    const advanced = data.advanced || data.intelligent || {};
+    fullText += `\n--- 3. ADVANCED ---\nHow to Explain: ${advanced.howToExplain || ''}\nExercises:\n`;
+    (advanced.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
     // 4. Teaching Strategy
     if (data.teachingTips) {
