@@ -32,10 +32,8 @@ const firebaseConfig = {
   measurementId: "G-YT6Q1B7R6K"
 };
 
-// Allowed admin emails for /admin/users dashboard
-const ADMIN_EMAILS = [
-  "warikhan1995@gmail.com"
-];
+// Admin access is verified server-side via /api/admin/verify
+const ADMIN_EMAILS = [];
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);

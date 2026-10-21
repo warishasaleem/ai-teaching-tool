@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service | TEACHER AI</title>
+  <meta name="description" content="Terms of Service for TEACHER AI. Free monthly usage policy, educator guidelines, and data protection terms.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .legal-page-body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      padding: 0;
+    }
+
+    .legal-header {
+      background: rgba(18, 21, 32, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .legal-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .legal-brand h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0;
+      color: #fff;
+    }
+
+    .legal-brand h1 span {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .legal-container {
+      flex: 1;
+      max-width: 52rem;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 4rem 1.5rem;
+    }
+
+    .legal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 2rem;
+      box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.4);
+    }
+
+    .legal-title-group {
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .legal-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--accent-primary);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.25rem 0.75rem;
+      border-radius: 2rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .legal-title-group h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .legal-date {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .legal-content section {
+      margin-bottom: 2rem;
+    }
+
+    .legal-content h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #fff;
+      margin: 0 0 0.75rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .legal-content h3 i {
+      color: var(--accent-primary);
+      font-size: 1rem;
+    }
+
+    .legal-content p, .legal-content li {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.7;
+      margin-bottom: 0.75rem;
+    }
+
+    .legal-content ul {
+      margin: 0.5rem 0 1rem 1.5rem;
+      padding: 0;
+    }
+
+    .legal-content li {
+      margin-bottom: 0.35rem;
+    }
+
+    .highlight-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 3px solid var(--accent-primary);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+    }
+
+    .highlight-box p {
+      color: #e2e8f0;
+      margin: 0;
+      font-weight: 500;
+    }
+
+    .legal-footer {
+      background: var(--bg-card);
+      border-top: 1px solid var(--border-color);
+      padding: 1.5rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .legal-footer-links {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1.25rem;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .legal-footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: var(--transition);
+    }
+
+    .legal-footer-links a:hover {
+      color: var(--accent-primary);
+    }
+  </style>
+</head>
+<body class="legal-page-body dark-theme">
+
+  <!-- HEADER -->
+  <header class="legal-header">
+    <a href="/" class="legal-brand">
+      <div class="auth-logo" style="width: 2rem; height: 2rem; font-size: 0.95rem; margin: 0;">
+        <i class="fa-solid fa-graduation-cap"></i>
+      </div>
+      <h1>TEACHER <span>AI</span></h1>
+    </a>
+
+    <a href="/" class="btn btn-outline touch-target">
+      <i class="fa-solid fa-arrow-left"></i> Back to App
+    </a>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="legal-container">
+    <article class="legal-card">
+      <div class="legal-title-group">
+        <span class="legal-pill"><i class="fa-solid fa-scale-balanced"></i> Terms & Educator Agreement</span>
+        <h2>Terms of Service</h2>
+        <span class="legal-date">Last Updated: October 2026</span>
+      </div>
+
+      <div class="legal-content">
+        <section>
+          <h3><i class="fa-solid fa-handshake"></i> 1. Acceptance of Terms</h3>
+          <p>By creating an account, signing in with Google, or accessing TEACHER AI ("the Service"), you agree to abide by these Terms of Service. If you do not agree to these terms, please do not use the Service.</p>
+        </section>
+
+        <section>
+          <h3><i class="fa-solid fa-chalkboard-user"></i> 2. Purpose & Intended Use</h3>
+          <p>TEACHER AI is designed exclusively for educators, school instructors, curriculum developers, and tutors to rapidly generate differentiated instructional materials across <strong>Foundation</strong>, <strong>Core</strong>, and <strong>Advanced</strong> student levels.</p>
+        </section>
+
+        <section>
+          <h3><i class="fa-solid fa-bolt"></i> 3. Free Monthly Quota & Fair Use</h3>
+          <p>Every educator who signs in with a Google account receives a monthly allocation of <strong>10 free plan generations per calendar month</strong>.</p>
+          <ul>
+            <li>Monthly quotas are refreshed at the beginning of each calendar month.</li>
+            <li>Usage is verified and counted server-side before generation begins.</li>
+            <li>For schools, departments, and institutions requiring unlimited plan generations, department collaboration, and customized syllabus alignment, please contact us for a <strong>School License</strong>.</li>
+          </ul>
+        </section>
+
+        <div class="highlight-box">
+          <p><i class="fa-solid fa-shield-halved" style="color: #6366f1; margin-right: 0.5rem;"></i> <strong>Data Ownership & Privacy:</strong> We store only your Google email address and generated plan history. Your data is stored securely and is <strong>never sold to anyone</strong> or used for advertising purposes.</p>
+        </div>
+
+        <section>
+          <h3><i class="fa-solid fa-brain"></i> 4. AI Content & Pedagogical Disclaimers</h3>
+          <p>TEACHER AI uses advanced artificial intelligence to assist teachers with explanations and exercises. While calibrated for classroom instruction, teachers remain in complete professional control and are advised to review and adapt lesson plans to suit their school's standards and safety guidelines.</p>
+        </section>
+
+        <section>
+          <h3><i class="fa-solid fa-envelope"></i> 5. Contact & Institutional Licensing</h3>
+          <p>For questions about these Terms of Service, assistance, or institutional School License inquiries, please reach out to our team:</p>
+          <p>
+            <a href="mailto:support@example.com?subject=School%20License%20Inquiry%20-%20TEACHER%20AI" class="btn btn-outline touch-target contact-email-link" id="contactLicenseBtn">
+              <i class="fa-solid fa-envelope"></i> Contact Us
+            </a>
+          </p>
+        </section>
+      </div>
+    </article>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="legal-footer">
+    <div class="legal-footer-links">
+      <a href="/">Home</a>
+      <span>•</span>
+      <a href="/terms">Terms of Service</a>
+      <span>•</span>
+      <a href="/privacy">Privacy Policy</a>
+      <span>•</span>
+      <a href="mailto:support@example.com" class="contact-email-link">Contact</a>
+    </div>
+    <div>© 2026 TEACHER AI. Secure Differentiated Lesson Plan Assistant. All rights reserved.</div>
+  </footer>
+
+  <script>
+    // Dynamically load CONTACT_EMAIL from server
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.contactEmail) {
+          document.querySelectorAll('.contact-email-link').forEach(link => {
+            link.href = 'mailto:' + encodeURIComponent(data.contactEmail) + '?subject=Inquiry%20-%20TEACHER%20AI';
+          });
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

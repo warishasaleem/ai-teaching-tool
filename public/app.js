@@ -15,8 +15,7 @@ import {
   collection,
   query,
   where,
-  getDocs,
-  ADMIN_EMAILS
+  getDocs
 } from "./firebaseConfig.js";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,13 +25,22 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeThreadId = null;
   let viewMode = 'tabbed'; // 'tabbed' or 'grid'
 
-  // DOM Elements - Auth & Restricted Overlays
+  // Monthly Usage Limit State (10 Plans / Calendar Month)
+  let currentUsage = { count: 0, limit: 10, remaining: 10, limitReached: false };
+
+  // DOM Elements - Auth Overlay & App Layout
   const authOverlay = document.getElementById('authOverlay');
-  const accessRestrictedOverlay = document.getElementById('accessRestrictedOverlay');
-  const restrictedEmailDisplay = document.getElementById('restrictedEmailDisplay');
-  const restrictedLogoutBtn = document.getElementById('restrictedLogoutBtn');
   const appLayout = document.getElementById('appLayout');
   const googleSignInBtn = document.getElementById('googleSignInBtn');
+
+  // DOM Elements - Monthly Usage & Limit Indicators
+  const usageBadge = document.getElementById('usageBadge');
+  const usageText = document.getElementById('usageText');
+  const inputUsageText = document.getElementById('inputUsageText');
+  const navUsageBadge = document.getElementById('navUsageBadge');
+  const navUsageText = document.getElementById('navUsageText');
+  const limitReachedCard = document.getElementById('limitReachedCard');
+  const topicInputFields = document.getElementById('topicInputFields');
 
   // DOM Elements - User Profile Displays
   const sidebarUserName = document.getElementById('sidebarUserName');
@@ -100,9 +108,36 @@ document.addEventListener('DOMContentLoaded', () => {
   const toastContainer = document.getElementById('toastContainer');
 
   // Initialize App & Firebase Auth Observer
+  let appContactEmail = 'support@example.com';
+
+  async function loadAppConfig() {
+    try {
+      const res = await fetch('/api/config');
+      const data = await res.json();
+      if (data && data.contactEmail) {
+        appContactEmail = data.contactEmail;
+        updateContactLinks(appContactEmail);
+      }
+    } catch (e) {
+      console.warn('[Config] Failed to load server config:', e.message);
+    }
+  }
+
+  function updateContactLinks(email) {
+    if (!email) return;
+    const links = document.querySelectorAll('a#contactLicenseBtn, a.contact-email-link, a[data-contact-email]');
+    links.forEach(l => {
+      l.href = `mailto:${encodeURIComponent(email)}?subject=School%20License%20Inquiry%20-%20TEACHER%20AI`;
+      if (l.classList.contains('contact-email-text')) {
+        l.textContent = email;
+      }
+    });
+  }
+
   init();
 
   function init() {
+    loadAppConfig();
     setupFirebaseAuth();
     setupEventListeners();
   }
@@ -166,6 +201,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // --- MONTHLY FREE USAGE LIMIT LOGIC (10 Plans / Calendar Month) ---
+  function updateUsageUI(usageData) {
+    if (!usageData) return;
+    currentUsage = { ...currentUsage, ...usageData };
+    const remaining = typeof currentUsage.remaining === 'number'
+      ? currentUsage.remaining
+      : Math.max(0, 10 - (currentUsage.count || 0));
+    const limitReached = currentUsage.limitReached || remaining <= 0;
+
+    const remainingText = `${remaining} free plans left this month`;
+    const navText = `${remaining} free plans left`;
+
+    if (usageText) usageText.textContent = remainingText;
+    if (inputUsageText) inputUsageText.textContent = remainingText;
+    if (navUsageText) navUsageText.textContent = navText;
+
+    if (limitReached) {
+      if (usageBadge) usageBadge.classList.add('limit-reached');
+      if (navUsageBadge) navUsageBadge.classList.add('limit-reached');
+      if (limitReachedCard) limitReachedCard.style.display = 'flex';
+      if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.classList.add('disabled-limit');
+      }
+      if (topicInput) topicInput.disabled = true;
+    } else {
+      if (usageBadge) usageBadge.classList.remove('limit-reached');
+      if (navUsageBadge) navUsageBadge.classList.remove('limit-reached');
+      if (limitReachedCard) limitReachedCard.style.display = 'none';
+      if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.classList.remove('disabled-limit');
+      }
+      if (topicInput) topicInput.disabled = false;
+    }
+  }
+
+  async function fetchUserUsage(email) {
+    if (!email) return;
+    try {
+      const res = await fetch(`/api/user/usage?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (data && data.success) {
+        updateUsageUI(data);
+      }
+    } catch (err) {
+      console.warn('Error fetching monthly plan usage:', err);
+    }
+  }
+
   // --- FIREBASE AUTHENTICATION OBSERVER & HANDLERS ---
   function setupFirebaseAuth() {
     // 1. Google Sign-In Entry Point Button
@@ -183,6 +268,13 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast(error.message || "Failed to sign in with Google.", "error");
           }
         }
+      });
+    }
+
+    const landingNavSignInBtn = document.getElementById('landingNavSignInBtn');
+    if (landingNavSignInBtn && googleSignInBtn) {
+      landingNavSignInBtn.addEventListener('click', () => {
+        googleSignInBtn.click();
       });
     }
 
@@ -215,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // 3. Logout Handlers (Works from Top Nav, Sidebar & Access Restricted Screen)
+    // 3. Logout Handlers (Works from Top Nav & Sidebar)
     const handleFirebaseLogout = async () => {
       try {
         await signOut(auth);
@@ -228,7 +320,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (sidebarLogoutBtn) sidebarLogoutBtn.addEventListener('click', handleFirebaseLogout);
     if (topLogoutBtn) topLogoutBtn.addEventListener('click', handleFirebaseLogout);
-    if (restrictedLogoutBtn) restrictedLogoutBtn.addEventListener('click', handleFirebaseLogout);
   }
 
   function onLoginSuccess(user) {
@@ -238,6 +329,9 @@ document.addEventListener('DOMContentLoaded', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: user.name, email: user.email })
     }).catch(err => console.error('Login notification error:', err));
+
+    // Fetch user's monthly free usage limit
+    fetchUserUsage(user.email);
 
     // Update Profile Views & Avatars
     const initial = (user.name || user.email || 'T').charAt(0).toUpperCase();
@@ -258,36 +352,43 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebarUserEmail.textContent = user.email;
     topUserName.textContent = (user.name || user.email.split('@')[0]).split(' ')[0];
 
-    // Show Admin Link ONLY if user is warikhan1995@gmail.com
+    // Show Admin Link if user is authorized administrator (verified server-side)
     const cleanEmail = (user.email || '').toLowerCase().trim();
-    const isAdmin = cleanEmail === 'warikhan1995@gmail.com';
     const adminNavBtn = document.getElementById('adminUsersNavBtn');
     if (adminNavBtn) {
-      adminNavBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+      fetch('/api/admin/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail })
+      })
+      .then(res => res.json())
+      .then(data => {
+        adminNavBtn.style.display = data.isAdmin ? 'inline-flex' : 'none';
+      })
+      .catch(err => {
+        console.warn('Admin check error:', err);
+        adminNavBtn.style.display = 'none';
+      });
     }
 
-    // Hide Auth & Restricted screens, Show App
+    // Hide Auth screen, Show App
     authOverlay.style.display = 'none';
-    if (accessRestrictedOverlay) accessRestrictedOverlay.style.display = 'none';
     appLayout.style.display = 'flex';
 
     // Load User-Specific Isolated Threads
     loadThreadsFromStorage();
     renderSidebar();
-    showHeroView();
+
+    if (threads.length > 0) {
+      loadThread(threads[0].id);
+    } else {
+      showHeroView();
+    }
   }
 
   function showAuthModal() {
     authOverlay.style.display = 'flex';
-    accessRestrictedOverlay.style.display = 'none';
     appLayout.style.display = 'none';
-  }
-
-  function showAccessRestrictedScreen(email) {
-    if (restrictedEmailDisplay) restrictedEmailDisplay.textContent = email || 'your account';
-    authOverlay.style.display = 'none';
-    appLayout.style.display = 'none';
-    accessRestrictedOverlay.style.display = 'flex';
   }
 
   // --- MOBILE SIDEBAR DRAWER LOGIC ---
@@ -379,8 +480,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    viewTabbedBtn.addEventListener('click', () => setViewMode('tabbed'));
-    viewGridBtn.addEventListener('click', () => setViewMode('grid'));
+    // Top Navigation View Switcher (Tabs vs Grid)
+    if (viewTabbedBtn) viewTabbedBtn.addEventListener('click', () => setViewMode('tabbed'));
+    if (viewGridBtn) viewGridBtn.addEventListener('click', () => setViewMode('grid'));
+
+    // In-Card Plan Toolbar View Switcher
+    const planViewTabbedBtn = document.getElementById('planViewTabbedBtn');
+    const planViewGridBtn = document.getElementById('planViewGridBtn');
+    if (planViewTabbedBtn) planViewTabbedBtn.addEventListener('click', () => setViewMode('tabbed'));
+    if (planViewGridBtn) planViewGridBtn.addEventListener('click', () => setViewMode('grid'));
 
     levelTabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -389,14 +497,21 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.classList.add('active');
 
         [weakCard, mediumCard, intelligentCard].forEach(card => card.classList.remove('active'));
-        if (targetLevel === 'weak') weakCard.classList.add('active');
-        if (targetLevel === 'medium') mediumCard.classList.add('active');
-        if (targetLevel === 'intelligent') intelligentCard.classList.add('active');
+        if (targetLevel === 'foundation' || targetLevel === 'beginner' || targetLevel === 'weak') weakCard.classList.add('active');
+        if (targetLevel === 'core' || targetLevel === 'intermediate' || targetLevel === 'medium') mediumCard.classList.add('active');
+        if (targetLevel === 'advanced' || targetLevel === 'intelligent') intelligentCard.classList.add('active');
       });
     });
 
-    copyFullPlanBtn.addEventListener('click', copyFullLessonPlan);
-    printPlanBtn.addEventListener('click', () => window.print());
+    // Copy Full Plan Buttons (Both Top Nav and In-Card Toolbar)
+    if (copyFullPlanBtn) copyFullPlanBtn.addEventListener('click', copyFullLessonPlan);
+    const planCopyFullBtn = document.getElementById('planCopyFullBtn');
+    if (planCopyFullBtn) planCopyFullBtn.addEventListener('click', copyFullLessonPlan);
+
+    // Print Plan Buttons (Both Top Nav and In-Card Toolbar)
+    if (printPlanBtn) printPlanBtn.addEventListener('click', () => window.print());
+    const planPrintBtn = document.getElementById('planPrintBtn');
+    if (planPrintBtn) planPrintBtn.addEventListener('click', () => window.print());
 
     deleteCurrentThreadBtn.addEventListener('click', () => {
       if (!activeThreadId) return;
@@ -413,18 +528,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let contentText = '';
         const data = thread.initialResponse;
-        if (target === 'weak') {
-          contentText = `WEAK STUDENTS:\nHow to explain: ${data.weak?.howToExplain || ''}\n\nExercises:\n` + (data.weak?.exercises || []).join('\n');
-        } else if (target === 'medium') {
-          contentText = `MEDIUM STUDENTS:\nHow to explain: ${data.medium?.howToExplain || ''}\n\nExercises:\n` + (data.medium?.exercises || []).join('\n');
-        } else if (target === 'intelligent') {
-          contentText = `INTELLIGENT STUDENTS:\nHow to explain: ${data.intelligent?.howToExplain || ''}\n\nExercises:\n` + (data.intelligent?.exercises || []).join('\n');
+        const foundation = data.foundation || data.beginner || data.weak || {};
+        const core = data.core || data.intermediate || data.medium || {};
+        const advanced = data.advanced || data.intelligent || {};
+
+        if (target === 'foundation' || target === 'beginner' || target === 'weak') {
+          contentText = `FOUNDATION:\nHow to explain: ${foundation.howToExplain || ''}\n\nExercises:\n` + (foundation.exercises || []).join('\n');
+        } else if (target === 'core' || target === 'intermediate' || target === 'medium') {
+          contentText = `CORE:\nHow to explain: ${core.howToExplain || ''}\n\nExercises:\n` + (core.exercises || []).join('\n');
+        } else if (target === 'advanced' || target === 'intelligent') {
+          contentText = `ADVANCED:\nHow to explain: ${advanced.howToExplain || ''}\n\nExercises:\n` + (advanced.exercises || []).join('\n');
         } else if (target === 'strategy') {
           contentText = `HOW TO TEACH THIS TOPIC (GENERAL STRATEGY):\n${data.teachingTips || ''}`;
         }
 
         copyToClipboard(contentText);
-        showToast(`Copied ${target.toUpperCase()} section to clipboard!`);
+        const displayLabel = (target === 'foundation' || target === 'beginner' || target === 'weak') ? 'FOUNDATION'
+          : (target === 'core' || target === 'intermediate' || target === 'medium') ? 'CORE'
+          : (target === 'advanced' || target === 'intelligent') ? 'ADVANCED'
+          : target.toUpperCase();
+        showToast(`Copied ${displayLabel} section to clipboard!`);
       });
     });
 
@@ -513,20 +636,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- API ACTIONS ---
   async function handleGenerateNewTopic(topicName) {
-    showLoading('Generating Differentiated Lesson Plan...', 'Creating tailored explanations & 5+ exercises for Weak, Medium, and Intelligent tiers.');
+    // Client-side pre-check for monthly limit
+    if (currentUsage && currentUsage.limitReached) {
+      showToast('Free limit reached. Contact us for a School License', 'error');
+      if (limitReachedCard) limitReachedCard.style.display = 'flex';
+      return;
+    }
+
+    showLoading('Generating Differentiated Lesson Plan...', 'Creating tailored explanations & 5+ exercises for Foundation, Core, and Advanced tiers.');
     
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topicName })
+        body: JSON.stringify({ 
+          topic: topicName,
+          email: currentUser?.email || '',
+          userId: currentUser?.uid || ''
+        })
       });
 
       const result = await response.json();
       hideLoading();
 
-      if (!result.success || !result.data) {
+      if (!response.ok || !result.success) {
+        if (response.status === 403 || result.limitReached) {
+          updateUsageUI({ count: 10, limit: 10, remaining: 0, limitReached: true });
+          showToast(result.error || 'Free limit reached. Contact us for a School License', 'error');
+          if (limitReachedCard) limitReachedCard.style.display = 'flex';
+          return;
+        }
         throw new Error(result.error || 'Failed to generate content from server.');
+      }
+
+      // Update remaining count from server response
+      if (result.usage) {
+        updateUsageUI(result.usage);
       }
 
       const newThread = {
@@ -664,14 +809,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const data = thread.initialResponse;
     greetingText.textContent = data.greeting || `Hello Teacher! Here is your differentiated plan for "${thread.topic}".`;
 
-    weakHowToExplain.textContent = data.weak?.howToExplain || 'No explanation available.';
-    renderExerciseList(weakExercises, data.weak?.exercises || []);
+    const foundation = data.foundation || data.beginner || data.weak || {};
+    const core = data.core || data.intermediate || data.medium || {};
+    const advanced = data.advanced || data.intelligent || {};
 
-    mediumHowToExplain.textContent = data.medium?.howToExplain || 'No explanation available.';
-    renderExerciseList(mediumExercises, data.medium?.exercises || []);
+    weakHowToExplain.textContent = foundation.howToExplain || 'No explanation available.';
+    renderExerciseList(weakExercises, foundation.exercises || []);
 
-    intelligentHowToExplain.textContent = data.intelligent?.howToExplain || 'No explanation available.';
-    renderExerciseList(intelligentExercises, data.intelligent?.exercises || []);
+    mediumHowToExplain.textContent = core.howToExplain || 'No explanation available.';
+    renderExerciseList(mediumExercises, core.exercises || []);
+
+    intelligentHowToExplain.textContent = advanced.howToExplain || 'No explanation available.';
+    renderExerciseList(intelligentExercises, advanced.exercises || []);
 
     teachingTipsText.textContent = data.teachingTips || 'No general strategy tips provided.';
 
@@ -808,15 +957,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setViewMode(mode) {
     viewMode = mode;
+    const planViewTabbedBtn = document.getElementById('planViewTabbedBtn');
+    const planViewGridBtn = document.getElementById('planViewGridBtn');
+
     if (mode === 'tabbed') {
-      viewTabbedBtn.classList.add('active');
-      viewGridBtn.classList.remove('active');
+      if (viewTabbedBtn) viewTabbedBtn.classList.add('active');
+      if (viewGridBtn) viewGridBtn.classList.remove('active');
+      if (planViewTabbedBtn) planViewTabbedBtn.classList.add('active');
+      if (planViewGridBtn) planViewGridBtn.classList.remove('active');
+
       levelCardsContainer.classList.add('tabbed-mode');
       levelCardsContainer.classList.remove('grid-mode');
       levelTabsHeader.style.display = 'flex';
     } else {
-      viewGridBtn.classList.add('active');
-      viewTabbedBtn.classList.remove('active');
+      if (viewGridBtn) viewGridBtn.classList.add('active');
+      if (viewTabbedBtn) viewTabbedBtn.classList.remove('active');
+      if (planViewGridBtn) planViewGridBtn.classList.add('active');
+      if (planViewTabbedBtn) planViewTabbedBtn.classList.remove('active');
+
       levelCardsContainer.classList.remove('tabbed-mode');
       levelCardsContainer.classList.add('grid-mode');
       levelTabsHeader.style.display = 'none';
@@ -833,20 +991,20 @@ document.addEventListener('DOMContentLoaded', () => {
       fullText += `GREETING:\n${data.greeting}\n\n`;
     }
     
-    // 1. Weak Students
-    const weak = data.weak || {};
-    fullText += `--- 1. WEAK STUDENTS ---\nHow to Explain: ${weak.howToExplain || ''}\nExercises:\n`;
-    (weak.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
+    // 1. Foundation
+    const foundation = data.foundation || data.beginner || data.weak || {};
+    fullText += `--- 1. FOUNDATION ---\nHow to Explain: ${foundation.howToExplain || ''}\nExercises:\n`;
+    (foundation.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
-    // 2. Medium Students
-    const medium = data.medium || {};
-    fullText += `\n--- 2. MEDIUM STUDENTS ---\nHow to Explain: ${medium.howToExplain || ''}\nExercises:\n`;
-    (medium.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
+    // 2. Core
+    const core = data.core || data.intermediate || data.medium || {};
+    fullText += `\n--- 2. CORE ---\nHow to Explain: ${core.howToExplain || ''}\nExercises:\n`;
+    (core.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
-    // 3. Intelligent Students
-    const intelligent = data.intelligent || {};
-    fullText += `\n--- 3. INTELLIGENT STUDENTS ---\nHow to Explain: ${intelligent.howToExplain || ''}\nExercises:\n`;
-    (intelligent.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
+    // 3. Advanced
+    const advanced = data.advanced || data.intelligent || {};
+    fullText += `\n--- 3. ADVANCED ---\nHow to Explain: ${advanced.howToExplain || ''}\nExercises:\n`;
+    (advanced.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
     // 4. Teaching Strategy
     if (data.teachingTips) {

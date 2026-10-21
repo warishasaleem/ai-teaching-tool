@@ -1,0 +1,169 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: userLogs
+    // Document ID: {userEmail} (lowercase user email, e.g. teacher@school.edu)
+    // Fields:
+    //   - email: string (required, valid email format, immutable, matches document ID and auth email)
+    //   - name: string (optional, display name, max length 100)
+    //   - photoURL: string (optional, profile photo URL or empty string, max length 2048)
+    //   - loginCount: int (required, positive integer >= 1, incremented upon each login)
+    //   - firstLoginAt: timestamp (required, initial login timestamp, immutable once set)
+    //   - lastLoginAt: timestamp (required, most recent login timestamp)
+    //
+    // Collection: usageCounters
+    // Document ID: {counterId} (formatted as {email}_{YYYY-MM}, e.g. teacher@school.edu_2026-10)
+    // Fields:
+    //   - email: string (required, valid email format)
+    //   - userId: string (optional, Firebase Auth UID, max length 128)
+    //   - month: string (required, format YYYY-MM)
+    //   - count: int (required, non-negative integer >= 0)
+    //   - updatedAt: timestamp (required, timestamp of last update)
+    //   - lastGeneratedAt: timestamp (required, timestamp of last generation)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the request is from an authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the authenticated user is the designated administrator
+    // Authority is derived from trusted bootstrap email or custom auth claims
+    function isAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token.email != null && request.auth.token.email.lower() == 'warikhan1995@gmail.com') ||
+        (request.auth.token.admin == true)
+      );
+    }
+
+    // Check if the authenticated user owns the resource based on email match
+    function isUser(targetEmail) {
+      return isAuthenticated() &&
+        request.auth.token.email != null &&
+        request.auth.token.email.lower() == targetEmail.lower();
+    }
+
+    // Validate email format and bounded length
+    function isValidEmail(email) {
+      return email is string &&
+        email.size() >= 3 &&
+        email.size() <= 254 &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Validate URL format (http or https) and bounded length
+    function isValidUrl(url) {
+      return url is string &&
+        url.size() <= 2048 &&
+        (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    // Validate schema, types, and constraints for userLogs documents
+    function isValidUserLog(data) {
+      return data.keys().hasAll(['email', 'loginCount', 'firstLoginAt', 'lastLoginAt']) &&
+        data.keys().hasOnly(['email', 'name', 'photoURL', 'loginCount', 'firstLoginAt', 'lastLoginAt']) &&
+        isValidEmail(data.email) &&
+        data.loginCount is int &&
+        data.loginCount >= 1 &&
+        data.firstLoginAt is timestamp &&
+        data.lastLoginAt is timestamp &&
+        (!('name' in data) || (data.name is string && data.name.size() <= 100)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 2048 && (data.photoURL.size() == 0 || isValidUrl(data.photoURL))));
+    }
+
+    // Validate schema, types, and constraints for usageCounters documents
+    function isValidUsageCounter(data) {
+      return data.keys().hasAll(['email', 'month', 'count', 'updatedAt', 'lastGeneratedAt']) &&
+        data.keys().hasOnly(['email', 'userId', 'month', 'count', 'updatedAt', 'lastGeneratedAt']) &&
+        isValidEmail(data.email) &&
+        data.month is string &&
+        data.month.matches("^[0-9]{4}-[0-9]{2}$") &&
+        data.count is int &&
+        data.count >= 0 &&
+        data.updatedAt is timestamp &&
+        data.lastGeneratedAt is timestamp &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128));
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // 1. User Activity Logs
+    match /userLogs/{userEmail} {
+      // READ:
+      // - Designated admin can read all userLogs (supports orderBy("lastLoginAt", "desc") queries)
+      // - Authenticated user can read their own log document
+      allow read: if isUser(userEmail) || isAdmin();
+
+      // CREATE:
+      // - Authenticated user creates their own log document upon initial sign-in
+      // - Validates full schema, initial loginCount of 1, and timestamp bounds
+      allow create: if isUser(userEmail) &&
+        isValidUserLog(request.resource.data) &&
+        request.resource.data.email.lower() == userEmail.lower() &&
+        request.resource.data.loginCount == 1 &&
+        request.resource.data.firstLoginAt <= request.time &&
+        request.resource.data.lastLoginAt <= request.time;
+
+      // UPDATE:
+      // - Authenticated user updates their own log document upon subsequent sign-ins
+      // - Enforces Validator Function Pattern on updates
+      // - Immutable fields: email and firstLoginAt are strictly locked
+      // - Monotonicity: loginCount and lastLoginAt can only advance, never regress
+      allow update: if isUser(userEmail) &&
+        isValidUserLog(request.resource.data) &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.firstLoginAt == resource.data.firstLoginAt &&
+        request.resource.data.loginCount >= resource.data.loginCount &&
+        request.resource.data.lastLoginAt >= resource.data.lastLoginAt &&
+        request.resource.data.lastLoginAt <= request.time;
+
+      // DELETE:
+      // - Deletions are strictly disallowed to maintain permanent audit integrity
+      allow delete: if false;
+    }
+
+    // 2. Monthly Usage Counters
+    match /usageCounters/{counterId} {
+      // READ:
+      // - Admin can read any usage counter
+      // - Authenticated user can read their own monthly usage counter
+      // - Gracefully permits checking non-existent documents without permission errors
+      allow read: if isAdmin() || (
+        isAuthenticated() &&
+        request.auth.token.email != null &&
+        (
+          resource == null ||
+          ('email' in resource.data && request.auth.token.email.lower() == resource.data.email.lower())
+        )
+      );
+
+      // WRITE:
+      // - Generation limits and counter increments are strictly enforced server-side.
+      // - All client writes (create, update, delete) are completely disabled.
+      allow write: if false;
+    }
+
+    // 3. Default Deny Fallback
+    // Disallows read and write access to all other collections and documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

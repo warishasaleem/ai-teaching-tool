@@ -3,7 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>TEACHER AI - Secure Differentiated Lesson Plan Assistant</title>
+  <title>Teacher AI - Secure Differentiated Lesson Plan Assistant</title>
+  <meta name="description" content="Teacher AI is an intelligent lesson-plan assistant for educators that instantly generates tailored explanations and custom exercises for Foundation, Core, and Advanced students.">
+  <meta property="og:title" content="Teacher AI - Secure Differentiated Lesson Plan Assistant">
+  <meta property="og:description" content="AI lesson-plan assistant for teachers that generates tailored explanations and 5+ custom exercises for Foundation, Core, and Advanced student levels in seconds.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/example-output.png">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,71 +23,133 @@
        1. FIREBASE AUTHENTICATION OVERLAY (Google Sign-In Entry Point)
        ========================================================================== -->
   <div class="auth-overlay" id="authOverlay">
-    <div class="auth-card">
-      <div class="auth-header">
-        <div class="auth-logo">
-          <i class="fa-solid fa-graduation-cap"></i>
-        </div>
-        <h2>TEACHER <span>AI</span></h2>
-        <p>Secure Educator Portal & Differentiated Lesson Plan Assistant</p>
-      </div>
-
-      <!-- SINGLE GOOGLE SIGN-IN CONTAINER -->
-      <div class="auth-google-container">
-        <div class="security-badge">
-          <i class="fa-solid fa-shield-halved"></i> Firebase Authentication • Isolated Educator Data
-        </div>
-
-        <button type="button" class="google-signin-btn touch-target" id="googleSignInBtn">
-          <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-          </svg>
-          <span>Continue with Google</span>
-        </button>
-      </div>
-
-      <div class="auth-footer">
-        <i class="fa-solid fa-lock"></i> Protected Session • Google Account Sign-In
-      </div>
-    </div>
-  </div>
-
-  <!-- ==========================================================================
-       2. ACCESS RESTRICTED SCREEN (Shown when email is not in Firestore allowlist)
-       ========================================================================== -->
-  <div class="auth-overlay" id="accessRestrictedOverlay" style="display: none;">
-    <div class="auth-card restricted-card">
-      <div class="restricted-icon">
-        <i class="fa-solid fa-user-lock"></i>
-      </div>
-      <h2>Access <span>Restricted</span></h2>
-      <p class="restricted-subtitle">Your Google account is signed in, but doesn't have access permissions yet.</p>
+    <div class="landing-page-wrapper">
       
-      <div class="restricted-user-box">
-        <i class="fa-solid fa-envelope"></i>
-        <span id="restrictedEmailDisplay">teacher@school.edu</span>
-      </div>
-
-      <div class="restricted-message-box">
-        <p><i class="fa-solid fa-circle-info"></i> Contact the administrator to request access for your email address:</p>
-        <div class="contact-links">
-          <a href="mailto:warikhan1995@gmail.com" class="contact-btn email-contact">
-            <i class="fa-solid fa-paper-plane"></i> Email: warikhan1995@gmail.com
-          </a>
-          <a href="https://wa.me/923412636783" target="_blank" class="contact-btn whatsapp-contact">
-            <i class="fa-brands fa-whatsapp"></i> Contact on WhatsApp
-          </a>
+      <!-- 1. LANDING TOP NAV -->
+      <header class="landing-header">
+        <div class="landing-brand">
+          <div class="auth-logo landing-logo">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <span class="landing-brand-title">TEACHER <span>AI</span></span>
         </div>
+        <div class="landing-nav-links">
+          <a href="/privacy" class="landing-link">Privacy Policy</a>
+          <a href="/terms" class="landing-link">Terms</a>
+          <button type="button" class="btn btn-outline touch-target landing-nav-btn" id="landingNavSignInBtn">
+            <i class="fa-brands fa-google"></i> Sign In
+          </button>
+        </div>
+      </header>
+
+      <!-- 2. HERO + SIGN-IN ENTRY AREA (Centered Single Card) -->
+      <div class="auth-page-container">
+        
+        <!-- LOGIN CARD (Protected Entry Point) -->
+        <div class="auth-card">
+          <div class="auth-header">
+            <div class="auth-logo">
+              <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <h2>TEACHER <span>AI</span></h2>
+            <p>AI-Powered Differentiated Lesson Plan Assistant</p>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.5;">
+              Generate tailored explanations and 5+ custom exercises for <strong>Foundation</strong>, <strong>Core</strong>, and <strong>Advanced</strong> student levels in seconds.
+            </p>
+          </div>
+
+          <!-- SINGLE GOOGLE SIGN-IN CONTAINER -->
+          <div class="auth-google-container">
+            <div class="security-badge">
+              <i class="fa-solid fa-bolt"></i> 10 Free Plans Every Month • Firebase Protected
+            </div>
+
+            <button type="button" class="google-signin-btn touch-target" id="googleSignInBtn">
+              <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span>Continue with Google</span>
+            </button>
+          </div>
+
+          <div class="auth-footer">
+            <i class="fa-solid fa-lock"></i> Protected Session • Google Account Sign-In
+          </div>
+        </div>
+
       </div>
 
-      <button type="button" class="btn btn-outline restricted-logout-btn touch-target" id="restrictedLogoutBtn">
-        <i class="fa-solid fa-right-from-bracket"></i> Sign Out & Try Another Account
-      </button>
+      <!-- 3. THREE KEY BENEFITS SECTION -->
+      <section class="landing-benefits-section">
+        <div class="benefits-header">
+          <span class="benefits-badge"><i class="fa-solid fa-star"></i> 3 Key Educator Benefits</span>
+          <h3>Why Teachers Use TEACHER AI</h3>
+          <p>Designed to eliminate prep exhaustion and support mixed-ability learning in every classroom.</p>
+        </div>
+
+        <div class="benefits-grid">
+          <!-- Benefit 1 -->
+          <div class="benefit-card">
+            <div class="benefit-icon benefit-icon-foundation">
+              <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <h4>3-Tier Differentiation</h4>
+            <p>Generates tailored explanations and 5+ structured practice exercises calibrated for Foundation, Core, and Advanced student levels in seconds.</p>
+          </div>
+
+          <!-- Benefit 2 -->
+          <div class="benefit-card">
+            <div class="benefit-icon benefit-icon-core">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <h4>Save Hours of Prep Time</h4>
+            <p>Turn any syllabus topic into ready-to-teach lesson plans, printable pop quizzes, MCQs, debate questions, and real-life examples on demand.</p>
+          </div>
+
+          <!-- Benefit 3 -->
+          <div class="benefit-card">
+            <div class="benefit-icon benefit-icon-advanced">
+              <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <h4>Private & Educator-First</h4>
+            <p>Only your Google email and plan history are stored. Your data is isolated, protected, and never sold to anyone.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. EXAMPLE OUTPUT SHOWCASE -->
+      <section class="landing-preview-section">
+        <div class="benefits-header">
+          <span class="benefits-badge"><i class="fa-solid fa-image"></i> Example Lesson Plan</span>
+          <h3>See What TEACHER AI Generates</h3>
+          <p>Instant tailored explanations, 5+ exercises per tier, and general teaching tips for any classroom topic.</p>
+        </div>
+        <div class="landing-preview-box">
+          <img src="example-output.png" alt="Example lesson plan output" class="example-output-img">
+        </div>
+      </section>
+
+      <!-- 5. PUBLIC LANDING FOOTER -->
+      <footer class="landing-footer">
+        <div class="landing-footer-links">
+          <a href="/">Home</a>
+          <span>•</span>
+          <a href="/privacy">Privacy Policy</a>
+          <span>•</span>
+          <a href="/terms">Terms of Service</a>
+          <span>•</span>
+          <a href="mailto:support@example.com" class="contact-email-link">Contact</a>
+        </div>
+        <div class="landing-footer-copy">© 2026 TEACHER AI. Secure Differentiated Lesson Plan Assistant. All rights reserved.</div>
+      </footer>
+
     </div>
   </div>
+
+
 
   <!-- ==========================================================================
        3. MAIN APPLICATION LAYOUT (Protected View)
@@ -195,6 +263,12 @@
             <i class="fa-solid fa-users-gear"></i> <span class="hide-mobile">User Logs</span>
           </a>
 
+          <!-- TOP NAV MONTHLY USAGE BADGE -->
+          <div class="nav-usage-badge" id="navUsageBadge" title="Monthly Free Plans Remaining">
+            <i class="fa-solid fa-bolt"></i>
+            <span id="navUsageText">10 free plans left</span>
+          </div>
+
           <!-- USER TOP PROFILE BADGE -->
           <div class="nav-profile-badge" id="navProfileBadge">
             <div class="user-avatar mini" id="topUserAvatar">T</div>
@@ -209,29 +283,59 @@
       <!-- VIEW 1: NEW TOPIC SEARCH HERO (Default) -->
       <section class="hero-section" id="heroView">
         <div class="hero-container">
-          <div class="hero-badge">
-            <i class="fa-solid fa-shield-halved"></i> Private & Differentiated AI Assistant
+          <div class="hero-badges-wrapper">
+            <div class="hero-badge">
+              <i class="fa-solid fa-shield-halved"></i> Private & Differentiated AI Assistant
+            </div>
+            <!-- HERO MONTHLY USAGE BADGE -->
+            <div class="usage-badge" id="usageBadge" title="Monthly Plan Generation Limit">
+              <i class="fa-solid fa-sparkles"></i>
+              <span id="usageText">10 free plans left this month</span>
+            </div>
           </div>
+
           <h1>Empower Every Student in Your Classroom</h1>
           <p class="hero-subtitle">
-            Generate tailored explanations and 5+ custom exercises for <strong>Weak</strong>, <strong>Medium</strong>, and <strong>Intelligent</strong> student levels in seconds.
+            Generate tailored explanations and 5+ custom exercises for <strong>Foundation</strong>, <strong>Core</strong>, and <strong>Advanced</strong> student levels in seconds.
           </p>
 
           <!-- TOPIC INPUT CARD -->
           <div class="topic-input-card">
-            <div class="input-wrapper">
-              <i class="fa-solid fa-lightbulb input-icon"></i>
-              <textarea id="topicInput" placeholder="Enter a topic (e.g. 'Photosynthesis for grade 7', 'Quadratic equations grade 9', 'Fractions grade 5')..." rows="3"></textarea>
+            
+            <!-- LIMIT REACHED NOTIFICATION (Shown when 0 free plans left) -->
+            <div class="limit-reached-card" id="limitReachedCard" style="display: none;">
+              <div class="limit-reached-icon">
+                <i class="fa-solid fa-lock"></i>
+              </div>
+              <div class="limit-reached-content">
+                <h3 class="limit-reached-title">Free limit reached. Contact us for a School License</h3>
+                <p class="limit-reached-desc">
+                  You have used all 10 free lesson plans for this calendar month. Upgrade to a School License to unlock unlimited lesson plan generations, department-wide collaboration, and custom curriculum alignment.
+                </p>
+                <div class="limit-reached-actions">
+                  <a href="mailto:support@example.com?subject=School%20License%20Inquiry%20-%20TEACHER%20AI" class="btn btn-accent contact-license-btn touch-target" id="contactLicenseBtn">
+                    <i class="fa-solid fa-envelope"></i> Contact Us for a School License
+                  </a>
+                </div>
+              </div>
             </div>
 
-            <div class="input-footer">
-              <div class="input-hint">
-                <i class="fa-solid fa-lock"></i> Protected Session • Saved to Private Educator History
+            <!-- TOPIC INPUT FIELDS -->
+            <div class="topic-input-fields" id="topicInputFields">
+              <div class="input-wrapper">
+                <i class="fa-solid fa-lightbulb input-icon"></i>
+                <textarea id="topicInput" placeholder="Enter a topic (e.g. 'Photosynthesis for grade 7', 'Quadratic equations grade 9', 'Fractions grade 5')..." rows="3"></textarea>
               </div>
-              <button class="btn btn-accent generate-btn touch-target" id="generateBtn">
-                <span class="btn-text"><i class="fa-solid fa-paper-plane"></i> Generate Teaching Plan</span>
-                <span class="spinner" style="display: none;"><i class="fa-solid fa-circle-notch fa-spin"></i> Generating...</span>
-              </button>
+
+              <div class="input-footer">
+                <div class="input-hint" id="inputHint">
+                  <i class="fa-solid fa-bolt"></i> <span id="inputUsageText">10 free plans left this month</span>
+                </div>
+                <button class="btn btn-accent generate-btn touch-target" id="generateBtn">
+                  <span class="btn-text"><i class="fa-solid fa-paper-plane"></i> Generate Teaching Plan</span>
+                  <span class="spinner" style="display: none;"><i class="fa-solid fa-circle-notch fa-spin"></i> Generating...</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -266,23 +370,48 @@
             </div>
           </div>
 
+          <!-- PLAN ACTION TOOLBAR (Tab/Grid Switcher, Copy Full Plan, Print PDF) -->
+          <div class="plan-toolbar" id="planToolbar">
+            <div class="plan-toolbar-left">
+              <span class="plan-toolbar-title"><i class="fa-solid fa-sliders"></i> Plan Controls</span>
+            </div>
+            <div class="plan-toolbar-actions">
+              <div class="view-switcher" title="Toggle student tier display view">
+                <button class="switch-btn active touch-target" id="planViewTabbedBtn" title="Tabbed View">
+                  <i class="fa-solid fa-table-cells-large"></i> <span>Tabs</span>
+                </button>
+                <button class="switch-btn touch-target" id="planViewGridBtn" title="Stacked / Grid View">
+                  <i class="fa-solid fa-columns"></i> <span>Grid</span>
+                </button>
+              </div>
+
+              <button class="btn btn-outline touch-target" id="planCopyFullBtn" title="Copy Full Plan (All Tiers, Strategy & Activities)">
+                <i class="fa-solid fa-copy"></i> <span>Copy Plan</span>
+              </button>
+
+              <button class="btn btn-outline touch-target" id="planPrintBtn" title="Print or Export PDF (Multi-Page Ready)">
+                <i class="fa-solid fa-print"></i> <span>Print</span>
+              </button>
+            </div>
+          </div>
+
           <!-- 2. STUDENT LEVEL CATEGORIES (TABS / GRID CONTAINER) -->
           <div class="level-tabs-header" id="levelTabsHeader">
-            <button class="level-tab-btn weak-tab active touch-target" data-level="weak">
+            <button class="level-tab-btn foundation-tab weak-tab active touch-target" data-level="foundation">
               <span class="level-dot red"></span>
-              <span class="tab-name">Weak Students</span>
+              <span class="tab-name">Foundation</span>
               <span class="tab-badge">Basic</span>
             </button>
 
-            <button class="level-tab-btn medium-tab touch-target" data-level="medium">
+            <button class="level-tab-btn core-tab medium-tab touch-target" data-level="core">
               <span class="level-dot yellow"></span>
-              <span class="tab-name">Medium Students</span>
+              <span class="tab-name">Core</span>
               <span class="tab-badge">Standard</span>
             </button>
 
-            <button class="level-tab-btn intelligent-tab touch-target" data-level="intelligent">
+            <button class="level-tab-btn advanced-tab intelligent-tab touch-target" data-level="advanced">
               <span class="level-dot green"></span>
-              <span class="tab-name">Intelligent Students</span>
+              <span class="tab-name">Advanced</span>
               <span class="tab-badge">Advanced</span>
             </button>
           </div>
@@ -290,18 +419,18 @@
           <!-- LEVEL CONTENT DISPLAY AREA -->
           <div class="level-cards-container tabbed-mode" id="levelCardsContainer">
             
-            <!-- WEAK STUDENTS CARD -->
-            <div class="level-card weak-card active" id="weakCard">
+            <!-- FOUNDATION CARD -->
+            <div class="level-card foundation-card weak-card active" id="weakCard">
               <div class="card-header">
                 <div class="level-title">
-                  <span class="level-pill red"><i class="fa-solid fa-seedling"></i> Weak Students</span>
+                  <span class="level-pill red"><i class="fa-solid fa-seedling"></i> Foundation</span>
                   <span class="level-desc">Simpler language • Step-by-step breakdown • Basic exercises</span>
                 </div>
-                <button class="copy-sec-btn touch-target" data-target="weak" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
+                <button class="copy-sec-btn touch-target" data-target="foundation" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
               </div>
 
               <div class="explain-box">
-                <h4><i class="fa-solid fa-chalkboard-user"></i> How to Explain to Weak Students:</h4>
+                <h4><i class="fa-solid fa-chalkboard-user"></i> How to Explain to Foundation Students:</h4>
                 <p id="weakHowToExplain">Loading explanation...</p>
               </div>
 
@@ -313,18 +442,18 @@
               </div>
             </div>
 
-            <!-- MEDIUM STUDENTS CARD -->
-            <div class="level-card medium-card" id="mediumCard">
+            <!-- CORE CARD -->
+            <div class="level-card core-card medium-card" id="mediumCard">
               <div class="card-header">
                 <div class="level-title">
-                  <span class="level-pill yellow"><i class="fa-solid fa-tree"></i> Medium Students</span>
+                  <span class="level-pill yellow"><i class="fa-solid fa-tree"></i> Core</span>
                   <span class="level-desc">Moderate difficulty • Balanced explanation • Standard practice</span>
                 </div>
-                <button class="copy-sec-btn touch-target" data-target="medium" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
+                <button class="copy-sec-btn touch-target" data-target="core" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
               </div>
 
               <div class="explain-box">
-                <h4><i class="fa-solid fa-chalkboard-user"></i> How to Explain to Medium Students:</h4>
+                <h4><i class="fa-solid fa-chalkboard-user"></i> How to Explain to Core Students:</h4>
                 <p id="mediumHowToExplain">Loading explanation...</p>
               </div>
 
@@ -336,18 +465,18 @@
               </div>
             </div>
 
-            <!-- INTELLIGENT STUDENTS CARD -->
-            <div class="level-card intelligent-card" id="intelligentCard">
+            <!-- ADVANCED CARD -->
+            <div class="level-card advanced-card intelligent-card" id="intelligentCard">
               <div class="card-header">
                 <div class="level-title">
-                  <span class="level-pill green"><i class="fa-solid fa-brain"></i> Intelligent Students</span>
+                  <span class="level-pill green"><i class="fa-solid fa-brain"></i> Advanced</span>
                   <span class="level-desc">Advanced exercises • Deeper conceptual inquiry • Complex challenges</span>
                 </div>
-                <button class="copy-sec-btn touch-target" data-target="intelligent" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
+                <button class="copy-sec-btn touch-target" data-target="advanced" title="Copy section text"><i class="fa-solid fa-copy"></i></button>
               </div>
 
               <div class="explain-box">
-                <h4><i class="fa-solid fa-chalkboard-user"></i> How to Explain to Intelligent Students:</h4>
+                <h4><i class="fa-solid fa-chalkboard-user"></i> How to Explain to Advanced Students:</h4>
                 <p id="intelligentHowToExplain">Loading explanation...</p>
               </div>
 
@@ -421,7 +550,7 @@
 
           <!-- FOLLOW-UP INPUT BAR -->
           <div class="chat-input-wrapper">
-            <textarea id="followUpInput" placeholder="Ask follow-up questions (e.g., 'Make weak level easier', 'Add 2 more MCQs for medium level')..." rows="2"></textarea>
+            <textarea id="followUpInput" placeholder="Ask follow-up questions (e.g., 'Make foundation level easier', 'Add 2 more MCQs for core level')..." rows="2"></textarea>
             <button class="btn btn-accent send-msg-btn touch-target" id="sendFollowUpBtn" title="Send Follow-up Message">
               <i class="fa-solid fa-paper-plane"></i>
             </button>
@@ -438,6 +567,18 @@
           <p id="loaderSubtitle">Crafting explanations & custom exercises for all 3 learning tiers.</p>
         </div>
       </div>
+
+      <!-- APPLICATION FOOTER -->
+      <footer class="app-main-footer">
+        <div class="app-footer-links">
+          <a href="/privacy">Privacy Policy</a>
+          <span>•</span>
+          <a href="/terms">Terms of Service</a>
+          <span>•</span>
+          <a href="mailto:support@example.com" class="contact-email-link">Contact Support</a>
+        </div>
+        <div class="app-footer-copy">© 2026 TEACHER AI. 10 free plans every calendar month.</div>
+      </footer>
 
     </main>
   </div>
