@@ -393,14 +393,7 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, a {
   background: rgba(99, 102, 241, 0.25);
 }
 
-.whatsapp-contact {
-  background: rgba(37, 211, 102, 0.15);
-  border: 1px solid rgba(37, 211, 102, 0.3);
-  color: #25D366;
-}
-.whatsapp-contact:hover {
-  background: rgba(37, 211, 102, 0.25);
-}
+
 
 .restricted-logout-btn {
   width: 100%;

@@ -21,6 +21,7 @@ import {
 document.addEventListener('DOMContentLoaded', () => {
   // Authentication & State
   let currentUser = null;
+  let firebaseUser = null;
   let threads = [];
   let activeThreadId = null;
   let viewMode = 'tabbed'; // 'tabbed' or 'grid'
@@ -127,10 +128,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!email) return;
     const links = document.querySelectorAll('a#contactLicenseBtn, a.contact-email-link, a[data-contact-email]');
     links.forEach(l => {
-      l.href = `mailto:${encodeURIComponent(email)}?subject=School%20License%20Inquiry%20-%20TEACHER%20AI`;
-      if (l.classList.contains('contact-email-text')) {
-        l.textContent = email;
+      const currentHref = l.getAttribute('href') || '';
+      let subject = 'Contact%20-%20TEACHER%20AI';
+      if (currentHref.includes('School%20License')) {
+        subject = 'School%20License%20Inquiry%20-%20TEACHER%20AI';
+      } else if (currentHref.includes('Privacy')) {
+        subject = 'Privacy%20Inquiry%20-%20TEACHER%20AI';
       }
+      l.href = `mailto:${encodeURIComponent(email)}?subject=${subject}`;
+    });
+    document.querySelectorAll('.contact-email-text').forEach(el => {
+      el.textContent = email;
     });
   }
 
@@ -238,13 +246,65 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function fetchUserUsage(email) {
-    if (!email) return;
+    // Helper: Get fresh Firebase ID token; if auth is still initializing, wait for login to resolve
+  async function getAuthToken() {
+    // 1. If auth.currentUser or firebaseUser is already available
+    const activeUser = auth.currentUser || firebaseUser;
+    if (activeUser && typeof activeUser.getIdToken === 'function') {
+      try {
+        return await activeUser.getIdToken();
+      } catch (err) {
+        console.warn('[Auth] getIdToken failed, attempting refresh:', err);
+      }
+    }
+
+    // 2. If auth is still initializing or restoring session from IndexedDB/localStorage, wait
+    return new Promise((resolve) => {
+      let resolved = false;
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          unsubscribe();
+          resolve(null);
+        }
+      }, 10000); // 10 second safety timeout
+
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user && !resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          unsubscribe();
+          try {
+            firebaseUser = user;
+            const token = await user.getIdToken();
+            resolve(token);
+          } catch (e) {
+            console.error('[Auth] Failed to get ID token:', e);
+            resolve(null);
+          }
+        }
+      });
+    });
+  }
+
+  async function fetchUserUsage() {
     try {
-      const res = await fetch(`/api/user/usage?email=${encodeURIComponent(email)}`);
+      const token = await getAuthToken();
+      if (!token) return;
+
+      const res = await fetch('/api/user/usage', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       if (data && data.success) {
         updateUsageUI(data);
+      } else if (data && data.error) {
+        console.warn('[Usage] Server response:', data.error);
+        if (res.status === 503) {
+          showToast(data.error, 'warning');
+        }
       }
     } catch (err) {
       console.warn('Error fetching monthly plan usage:', err);
@@ -286,6 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (user) {
+        firebaseUser = user;
         currentUser = {
           name: user.displayName || user.email.split('@')[0],
           email: user.email,
@@ -301,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         // User signed out -> Show Sign-In Overlay
         currentUser = null;
-        threads = [];
+        firebaseUser = null;
         activeThreadId = null;
         showAuthModal();
       }
@@ -331,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }).catch(err => console.error('Login notification error:', err));
 
     // Fetch user's monthly free usage limit
-    fetchUserUsage(user.email);
+    fetchUserUsage();
 
     // Update Profile Views & Avatars
     const initial = (user.name || user.email || 'T').charAt(0).toUpperCase();
@@ -643,16 +704,23 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const token = await getAuthToken();
+    if (!token) {
+      showToast('Please sign in again', 'warning');
+      return;
+    }
+
     showLoading('Generating Differentiated Lesson Plan...', 'Creating tailored explanations & 5+ exercises for Foundation, Core, and Advanced tiers.');
     
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ 
-          topic: topicName,
-          email: currentUser?.email || '',
-          userId: currentUser?.uid || ''
+          topic: topicName
         })
       });
 
@@ -664,6 +732,15 @@ document.addEventListener('DOMContentLoaded', () => {
           updateUsageUI({ count: 10, limit: 10, remaining: 0, limitReached: true });
           showToast(result.error || 'Free limit reached. Contact us for a School License', 'error');
           if (limitReachedCard) limitReachedCard.style.display = 'flex';
+          return;
+        }
+        if (response.status === 401) {
+          showToast('Please sign in again', 'error');
+          showAuthModal();
+          return;
+        }
+        if (response.status === 503) {
+          showToast(result.error || 'Service abhi available nahi, thori der baad try karein', 'error');
           return;
         }
         throw new Error(result.error || 'Failed to generate content from server.');
@@ -705,6 +782,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const thread = getActiveThread();
     if (!thread) return;
 
+    const token = await getAuthToken();
+    if (!token) {
+      showToast('Please sign in again', 'warning');
+      return;
+    }
+
     const userMsgObj = {
       id: 'msg_' + Date.now(),
       sender: 'user',
@@ -738,7 +821,10 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const response = await fetch('/api/followup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           topic: thread.topic,
           initialResponse: thread.initialResponse,
@@ -757,6 +843,15 @@ document.addEventListener('DOMContentLoaded', () => {
       followUpInput.focus();
 
       if (!result.success || !result.reply) {
+        if (response.status === 401) {
+          showToast('Please sign in again', 'error');
+          showAuthModal();
+          return;
+        }
+        if (response.status === 503) {
+          showToast(result.error || 'Service abhi available nahi, thori der baad try karein', 'error');
+          return;
+        }
         throw new Error(result.error || 'Failed to get follow-up response.');
       }
 

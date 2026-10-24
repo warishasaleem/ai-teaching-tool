@@ -88,14 +88,28 @@
       <a href="/" class="notfound-home-btn touch-target">
         <i class="fa-solid fa-arrow-left"></i> Back to Home
       </a>
-      <div style="margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color); font-size: 0.825rem; color: var(--text-muted); display: flex; justify-content: center; gap: 1rem;">
+      <div style="margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color); font-size: 0.825rem; color: var(--text-muted); display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
         <a href="/" style="color: var(--text-muted); text-decoration: none;">Home</a>
         <span>•</span>
         <a href="/privacy" style="color: var(--text-muted); text-decoration: none;">Privacy Policy</a>
         <span>•</span>
         <a href="/terms" style="color: var(--text-muted); text-decoration: none;">Terms of Service</a>
+        <span>•</span>
+        <a href="mailto:support@example.com" class="contact-email-link" style="color: var(--text-muted); text-decoration: none;">Contact</a>
       </div>
     </div>
   </main>
+  <script>
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.contactEmail) {
+          document.querySelectorAll('.contact-email-link').forEach(a => {
+            a.href = 'mailto:' + encodeURIComponent(d.contactEmail) + '?subject=Support%20-%20TEACHER%20AI';
+          });
+        }
+      })
+      .catch(() => {});
+  </script>
 </body>
 </html>

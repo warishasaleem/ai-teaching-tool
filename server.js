@@ -20,7 +20,7 @@ try {
         if (eqIdx > 0) {
           const key = trimmed.slice(0, eqIdx).trim();
           const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
-          if (key && !process.env[key]) {
+          if (key) {
             process.env[key] = val;
           }
         }
@@ -47,67 +47,99 @@ const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'support@example.com';
 // Monthly Free Plan Generation Limit per User
 const MONTHLY_FREE_LIMIT = 10;
 
-// Persistent Usage Storage (Local cache + Cloud Firestore)
-const USAGE_DATA_DIR = path.join(__dirname, 'data');
-const USAGE_DATA_FILE = path.join(USAGE_DATA_DIR, 'usageCounters.json');
-
-if (!fs.existsSync(USAGE_DATA_DIR)) {
-  try {
-    fs.mkdirSync(USAGE_DATA_DIR, { recursive: true });
-  } catch (e) {
-    console.warn('[Usage Storage] Could not create data directory:', e.message);
-  }
-}
-
-let localUsageStore = {};
-try {
-  if (fs.existsSync(USAGE_DATA_FILE)) {
-    const raw = fs.readFileSync(USAGE_DATA_FILE, 'utf8');
-    localUsageStore = JSON.parse(raw);
-  } else {
-    fs.writeFileSync(USAGE_DATA_FILE, '{}', 'utf8');
-  }
-} catch (e) {
-  console.warn('[Usage Storage] Failed reading local usage cache file:', e.message);
-  localUsageStore = {};
-}
-
-function saveUsageStoreToFile() {
-  try {
-    fs.writeFileSync(USAGE_DATA_FILE, JSON.stringify(localUsageStore, null, 2), 'utf8');
-  } catch (e) {
-    console.error('[Usage Storage] Failed writing local usage cache file:', e.message);
-  }
-}
-
-// Optional Cloud Firestore connection via firebase-admin
+// ============================================================================
+// Firebase Admin SDK & Cloud Firestore Connection
+// Strictly loads service account key from GOOGLE_APPLICATION_CREDENTIALS path
+// ============================================================================
 let firestoreDb = null;
+let adminAuth = null;
+let firestoreInitError = null;
+
 try {
   const admin = require('firebase-admin');
   const { getFirestore } = require('firebase-admin/firestore');
+  const { getAuth } = require('firebase-admin/auth');
 
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    let serviceAccount;
-    try {
-      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    } catch (e) {
-      serviceAccount = require(path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_KEY));
+  const credPathEnv = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (!credPathEnv || !credPathEnv.trim()) {
+    firestoreInitError = 'GOOGLE_APPLICATION_CREDENTIALS environment variable is not set in .env.';
+    console.error(`[Firebase Admin Error] ${firestoreInitError}`);
+  } else {
+    const rawPath = credPathEnv.trim().replace(/^["']|["']$/g, '');
+    const resolvedPath = path.isAbsolute(rawPath) ? rawPath : path.resolve(__dirname, rawPath);
+
+    if (!fs.existsSync(resolvedPath)) {
+      firestoreInitError = `Firebase service account key file not found at: ${resolvedPath}`;
+      console.error(`[Firebase Admin Error] ${firestoreInitError}`);
+    } else {
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = resolvedPath;
+      let credential;
+      if (typeof admin.cert === 'function') {
+        credential = admin.cert(require(resolvedPath));
+      } else if (admin.credential && typeof admin.credential.cert === 'function') {
+        credential = admin.credential.cert(require(resolvedPath));
+      } else if (typeof admin.applicationDefault === 'function') {
+        credential = admin.applicationDefault();
+      }
+
+      const adminApp = admin.initializeApp({
+        credential,
+        projectId: 'teacher-ai-ab79f'
+      });
+
+      firestoreDb = getFirestore(adminApp);
+      adminAuth = getAuth(adminApp);
+      console.log(`[Firebase Admin] Successfully connected to Cloud Firestore with service account key: ${resolvedPath}`);
     }
-    const adminApp = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: 'teacher-ai-ab79f'
-    });
-    firestoreDb = getFirestore(adminApp);
-    console.log('[Firebase Admin] Connected to Cloud Firestore with service account.');
-  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    const adminApp = admin.initializeApp({
-      projectId: 'teacher-ai-ab79f'
-    });
-    firestoreDb = getFirestore(adminApp);
-    console.log('[Firebase Admin] Connected to Cloud Firestore via GOOGLE_APPLICATION_CREDENTIALS.');
   }
 } catch (e) {
-  console.warn('[Firebase Admin] Cloud Firestore note:', e.message);
+  firestoreInitError = `Failed to initialize Firebase Admin SDK: ${e.message}`;
+  console.error(`[Firebase Admin Error] ${firestoreInitError}`);
+}
+
+// Helper: Verify Firebase ID token from Authorization header or body
+// Returns decoded token object { uid, email, email_verified, ... } or throws 401/503 error
+async function verifyFirebaseTokenFromRequest(req) {
+  if (!adminAuth) {
+    console.error('[Auth Error] Admin Auth is not initialized:', firestoreInitError);
+    const err = new Error('Service abhi available nahi, thori der baad try karein');
+    err.status = 503;
+    throw err;
+  }
+
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  let idToken = null;
+
+  if (authHeader && typeof authHeader === 'string') {
+    if (authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.slice(7).trim();
+    } else {
+      idToken = authHeader.trim();
+    }
+  } else if (req.body && req.body.idToken) {
+    idToken = req.body.idToken;
+  }
+
+  if (!idToken) {
+    const err = new Error('Unauthorized: Firebase ID token is missing.');
+    err.status = 401;
+    throw err;
+  }
+
+  try {
+    const decoded = await adminAuth.verifyIdToken(idToken);
+    if (!decoded || !decoded.email) {
+      const err = new Error('Unauthorized: Valid email not associated with token.');
+      err.status = 401;
+      throw err;
+    }
+    return decoded;
+  } catch (authErr) {
+    console.warn('[Firebase Auth Verification Failed]:', authErr.message);
+    const err = new Error('Unauthorized: Invalid or expired authentication token.');
+    err.status = 401;
+    throw err;
+  }
 }
 
 // Helper: Format current calendar month as YYYY-MM
@@ -118,75 +150,65 @@ function getCurrentMonthKey() {
   return `${year}-${month}`;
 }
 
-// Helper: Retrieve user monthly usage
+// Helper: Retrieve user monthly usage strictly from Cloud Firestore collection 'usageCounters'
 async function getMonthlyUsage(email) {
+  if (!firestoreDb) {
+    console.error('[Firestore Error] Cloud Firestore not connected:', firestoreInitError);
+    const err = new Error('Service abhi available nahi, thori der baad try karein');
+    err.status = 503;
+    throw err;
+  }
+
   const cleanEmail = (email || '').toLowerCase().trim();
   const monthKey = getCurrentMonthKey();
   const counterId = `${cleanEmail}_${monthKey}`;
 
-  // Ensure latest persisted data is synced into local cache
   try {
-    if (fs.existsSync(USAGE_DATA_FILE)) {
-      const raw = fs.readFileSync(USAGE_DATA_FILE, 'utf8');
-      const diskData = JSON.parse(raw);
-      if (diskData && typeof diskData === 'object') {
-        localUsageStore = { ...diskData, ...localUsageStore };
+    const docRef = firestoreDb.collection('usageCounters').doc(counterId);
+    const snap = await docRef.get();
+
+    let count = 0;
+    if (snap.exists) {
+      const data = snap.data();
+      if (data && typeof data.count === 'number') {
+        count = Math.max(0, data.count);
       }
     }
-  } catch (e) {
-    // Ignore read errors and use memory cache
+
+    const remaining = Math.max(0, MONTHLY_FREE_LIMIT - count);
+    const limitReached = count >= MONTHLY_FREE_LIMIT;
+
+    return {
+      counterId,
+      email: cleanEmail,
+      month: monthKey,
+      count,
+      limit: MONTHLY_FREE_LIMIT,
+      remaining,
+      limitReached
+    };
+  } catch (dbErr) {
+    console.error(`[Firestore Error] getMonthlyUsage failed for ${counterId}:`, dbErr.message);
+    const err = new Error('Service abhi available nahi, thori der baad try karein');
+    err.status = 503;
+    throw err;
   }
-
-  let record = localUsageStore[counterId] || null;
-
-  // Sync from Cloud Firestore if available
-  if (firestoreDb) {
-    try {
-      const snap = await firestoreDb.collection('usageCounters').doc(counterId).get();
-      if (snap.exists) {
-        const data = snap.data();
-        if (data && typeof data.count === 'number') {
-          if (!record || data.count > record.count) {
-            record = {
-              counterId,
-              email: cleanEmail,
-              month: monthKey,
-              count: data.count,
-              updatedAt: data.updatedAt,
-              lastGeneratedAt: data.lastGeneratedAt
-            };
-            localUsageStore[counterId] = record;
-            saveUsageStoreToFile();
-          }
-        }
-      }
-    } catch (fsErr) {
-      console.warn(`[Firestore] Read error for ${counterId}:`, fsErr.message);
-    }
-  }
-
-  const count = record && typeof record.count === 'number' ? record.count : 0;
-  const remaining = Math.max(0, MONTHLY_FREE_LIMIT - count);
-  const limitReached = count >= MONTHLY_FREE_LIMIT;
-
-  return {
-    counterId,
-    email: cleanEmail,
-    month: monthKey,
-    count,
-    limit: MONTHLY_FREE_LIMIT,
-    remaining,
-    limitReached
-  };
 }
 
-// Helper: Increment monthly generation count on the server before calling AI
+// Helper: Increment monthly generation count strictly in Cloud Firestore collection 'usageCounters'
 async function incrementMonthlyUsage(email, userId) {
+  if (!firestoreDb) {
+    console.error('[Firestore Error] Cloud Firestore not connected:', firestoreInitError);
+    const err = new Error('Service abhi available nahi, thori der baad try karein');
+    err.status = 503;
+    throw err;
+  }
+
   const cleanEmail = (email || '').toLowerCase().trim();
   const monthKey = getCurrentMonthKey();
   const counterId = `${cleanEmail}_${monthKey}`;
-  const now = new Date();
 
+  // 1. Verify current quota before incrementing
   const current = await getMonthlyUsage(cleanEmail);
   if (current.limitReached) {
     return {
@@ -199,66 +221,52 @@ async function incrementMonthlyUsage(email, userId) {
   }
 
   const newCount = current.count + 1;
-  const updatedRecord = {
-    counterId,
-    email: cleanEmail,
-    userId: userId || '',
-    month: monthKey,
-    count: newCount,
-    updatedAt: now.toISOString(),
-    lastGeneratedAt: now.toISOString()
-  };
+  try {
+    const { FieldValue } = require('firebase-admin/firestore');
+    const docRef = firestoreDb.collection('usageCounters').doc(counterId);
 
-  localUsageStore[counterId] = updatedRecord;
-  saveUsageStoreToFile();
+    await docRef.set({
+      counterId,
+      email: cleanEmail,
+      userId: userId || '',
+      month: monthKey,
+      count: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+      lastGeneratedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
 
-  // Persist to Firestore if available
-  if (firestoreDb) {
-    try {
-      const { FieldValue } = require('firebase-admin/firestore');
-      await firestoreDb.collection('usageCounters').doc(counterId).set({
-        email: cleanEmail,
-        userId: userId || '',
-        month: monthKey,
-        count: newCount,
-        updatedAt: FieldValue.serverTimestamp(),
-        lastGeneratedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
-      console.log(`[Firestore] Successfully synced usage count for ${counterId}: ${newCount}`);
-    } catch (fsErr) {
-      console.warn(`[Firestore] Write error for ${counterId}:`, fsErr.message);
-    }
+    console.log(`[Firestore] Successfully incremented usage for ${counterId}: ${newCount}/${MONTHLY_FREE_LIMIT}`);
+
+    return {
+      allowed: true,
+      count: newCount,
+      remaining: Math.max(0, MONTHLY_FREE_LIMIT - newCount),
+      limitReached: newCount >= MONTHLY_FREE_LIMIT
+    };
+  } catch (dbErr) {
+    console.error(`[Firestore Error] incrementMonthlyUsage failed for ${counterId}:`, dbErr.message);
+    const err = new Error('Service abhi available nahi, thori der baad try karein');
+    err.status = 503;
+    throw err;
   }
-
-  return {
-    allowed: true,
-    count: newCount,
-    remaining: Math.max(0, MONTHLY_FREE_LIMIT - newCount),
-    limitReached: newCount >= MONTHLY_FREE_LIMIT
-  };
 }
 
-// Helper: Roll back monthly generation count if AI call fails
+// Helper: Roll back monthly generation count in Cloud Firestore if AI call fails
 async function decrementMonthlyUsage(email) {
+  if (!firestoreDb) return;
   const cleanEmail = (email || '').toLowerCase().trim();
   const monthKey = getCurrentMonthKey();
   const counterId = `${cleanEmail}_${monthKey}`;
 
-  if (localUsageStore[counterId] && typeof localUsageStore[counterId].count === 'number') {
-    localUsageStore[counterId].count = Math.max(0, localUsageStore[counterId].count - 1);
-    saveUsageStoreToFile();
-  }
-
-  if (firestoreDb) {
-    try {
-      const { FieldValue } = require('firebase-admin/firestore');
-      await firestoreDb.collection('usageCounters').doc(counterId).set({
-        count: FieldValue.increment(-1),
-        updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
-    } catch (e) {
-      // Ignore rollback errors
-    }
+  try {
+    const { FieldValue } = require('firebase-admin/firestore');
+    await firestoreDb.collection('usageCounters').doc(counterId).set({
+      count: FieldValue.increment(-1),
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    console.log(`[Firestore] Rolled back generation count for ${counterId}`);
+  } catch (e) {
+    console.warn(`[Firestore] Rollback error for ${counterId}:`, e.message);
   }
 }
 
@@ -282,13 +290,27 @@ app.get('/api/config', (req, res) => {
   });
 });
 
-// Legal Pages Routes
-app.get('/privacy', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+// Legal Pages Routes (with dynamic CONTACT_EMAIL injection)
+app.get(['/privacy', '/privacy.html'], (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'privacy.html');
+  try {
+    let content = fs.readFileSync(filePath, 'utf8');
+    content = content.replace(/support@example\.com/g, CONTACT_EMAIL);
+    res.type('html').send(content);
+  } catch (err) {
+    res.sendFile(filePath);
+  }
 });
 
-app.get('/terms', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'terms.html'));
+app.get(['/terms', '/terms.html'], (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'terms.html');
+  try {
+    let content = fs.readFileSync(filePath, 'utf8');
+    content = content.replace(/support@example\.com/g, CONTACT_EMAIL);
+    res.type('html').send(content);
+  } catch (err) {
+    res.sendFile(filePath);
+  }
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -389,7 +411,7 @@ app.post('/api/notify-login', async (req, res) => {
 
     // Send Email Alert to ADMIN_EMAIL
     const mailOptions = {
-      from: '"TEACHER AI Alert" <no-reply@teacher-ai.org>',
+      from: `"TEACHER AI Alert" <${CONTACT_EMAIL}>`,
       to: ADMIN_EMAIL,
       subject: `🔔 New User Login Alert #${totalLoginCount}: ${name} (${email})`,
       html: `
@@ -448,13 +470,18 @@ app.post('/api/admin/verify', (req, res) => {
   return res.json({ success: true, isAdmin });
 });
 
-// 2d. Monthly Usage Endpoint (Query free plan status for teacher)
+// 2d. Monthly Usage Endpoint (Authenticated via Firebase ID token)
 app.get('/api/user/usage', async (req, res) => {
   try {
-    const { email } = req.query;
-    const cleanEmail = (email || '').toLowerCase().trim();
+    // 1. Verify token - DO NOT accept email from URL/body!
+    const decodedToken = await verifyFirebaseTokenFromRequest(req);
+    const cleanEmail = (decodedToken.email || '').toLowerCase().trim();
+
     if (!cleanEmail) {
-      return res.status(400).json({ success: false, error: 'Email parameter is required.' });
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized: User email not found in token.'
+      });
     }
 
     const usage = await getMonthlyUsage(cleanEmail);
@@ -463,27 +490,45 @@ app.get('/api/user/usage', async (req, res) => {
       ...usage
     });
   } catch (err) {
-    console.error('Error in /api/user/usage:', err);
-    return res.status(500).json({ success: false, error: err.message });
+    const statusCode = err.status || 500;
+    if (statusCode === 401) {
+      return res.status(401).json({
+        success: false,
+        error: err.message || 'Unauthorized: Valid Firebase ID token is required.'
+      });
+    }
+    console.error('Error in /api/user/usage:', err.message);
+    return res.status(503).json({
+      success: false,
+      error: 'Service abhi available nahi, thori der baad try karein'
+    });
   }
 });
 
-// 3. Initial Topic Generation Endpoint (Strictly Enforces 10 Plans/Month Server-Side)
+// 3. Initial Topic Generation Endpoint (Authenticated via Firebase ID token, 10 Plans/Month Limit)
 app.post('/api/generate', async (req, res) => {
   let usageIncremented = false;
   let cleanEmail = '';
+
   try {
-    const { topic, email, userId } = req.body;
+    // 1. Verify token - DO NOT accept email from URL/body!
+    const decodedToken = await verifyFirebaseTokenFromRequest(req);
+    cleanEmail = (decodedToken.email || '').toLowerCase().trim();
+    const userId = decodedToken.uid || '';
+
+    if (!cleanEmail) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized: User email not found in token.'
+      });
+    }
+
+    const { topic } = req.body;
     if (!topic || typeof topic !== 'string' || !topic.trim()) {
       return res.status(400).json({ success: false, error: 'Topic is required.' });
     }
 
-    cleanEmail = (email || '').toLowerCase().trim();
-    if (!cleanEmail) {
-      return res.status(400).json({ success: false, error: 'Teacher email is required to verify monthly usage.' });
-    }
-
-    // 1. SERVER-SIDE CHECK: Check monthly usage limit BEFORE calling Groq AI
+    // 2. SERVER-SIDE CHECK: Check monthly usage limit in Firestore BEFORE calling Groq AI
     const usageCheck = await getMonthlyUsage(cleanEmail);
     if (usageCheck.limitReached) {
       console.warn(`[Usage Limit] Blocked generation request for ${cleanEmail} (Free limit of ${MONTHLY_FREE_LIMIT} reached).`);
@@ -497,7 +542,7 @@ app.post('/api/generate', async (req, res) => {
       });
     }
 
-    // 2. SERVER-SIDE UPDATE: Increment count on server before calling the AI
+    // 3. SERVER-SIDE UPDATE: Increment count in Firestore before calling the AI
     const usageUpdate = await incrementMonthlyUsage(cleanEmail, userId);
     if (!usageUpdate.allowed) {
       return res.status(403).json({
@@ -511,7 +556,7 @@ app.post('/api/generate', async (req, res) => {
     }
     usageIncremented = true;
 
-    console.log(`[Usage Limit] Teacher ${cleanEmail} generated plan: count=${usageUpdate.count}/${MONTHLY_FREE_LIMIT}, remaining=${usageUpdate.remaining}`);
+    console.log(`[Usage Limit] Teacher ${cleanEmail} generating plan: count=${usageUpdate.count}/${MONTHLY_FREE_LIMIT}, remaining=${usageUpdate.remaining}`);
 
     const systemPrompt = `You are TEACHER AI, a world-class AI teaching assistant built for educators.
 Your goal is to generate differentiated teaching content tailored for 3 student learning levels (Foundation, Core, Advanced).
@@ -579,59 +624,44 @@ Return ONLY a valid raw JSON object matching this exact schema:
     const groqRes = await callGroqAPIWithFallback(basePayload);
     let rawContent = groqRes.choices?.[0]?.message?.content || '';
 
-    // Clean JSON content if wrapped in code blocks
-    rawContent = rawContent.replace(/```json/gi, '').replace(/```/g, '').trim();
-
-    let structuredData;
+    let responseJSON = null;
     try {
-      structuredData = JSON.parse(rawContent);
-    } catch (parseError) {
-      const match = rawContent.match(/\{[\s\S]*\}/);
-      if (match) {
-        structuredData = JSON.parse(match[0]);
+      responseJSON = JSON.parse(rawContent);
+    } catch (parseErr) {
+      console.warn('[JSON Parse Warning] Attempting sanitization on Groq response:', parseErr.message);
+      const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        responseJSON = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error('Could not extract JSON from AI response.');
+        throw new Error('Failed to parse AI output into valid lesson plan JSON.');
       }
     }
 
-    // Ensure array structure and fallbacks (supports foundation/core/advanced with backward compatibility for beginner/weak, intermediate/medium, advanced/intelligent)
-    const fallbackCategory = (keys, defaultHow) => {
-      let catObj = null;
-      for (const k of keys) {
-        if (structuredData && structuredData[k]) {
-          catObj = structuredData[k];
-          break;
+    // Ensure array structure and fallbacks for backward compatibility
+    const fallbackCategory = (aliases) => {
+      for (const a of aliases) {
+        if (responseJSON[a] && typeof responseJSON[a] === 'object') {
+          return {
+            howToExplain: responseJSON[a].howToExplain || '',
+            exercises: Array.isArray(responseJSON[a].exercises) ? responseJSON[a].exercises : []
+          };
         }
       }
-      if (!catObj) catObj = {};
-      const primaryKey = keys[0];
-      const exercisesList = Array.isArray(catObj.exercises) && catObj.exercises.length >= 5
-        ? catObj.exercises
-        : (catObj.exercises || []).concat(
-            Array.from({ length: Math.max(0, 5 - (catObj.exercises?.length || 0)) }, (_, i) => `Exercise ${i + 1} for ${primaryKey} level on ${topic}`)
-          );
-      return {
-        howToExplain: catObj.howToExplain || defaultHow,
-        exercises: exercisesList
-      };
+      return { howToExplain: '', exercises: [] };
     };
 
-    const foundationData = fallbackCategory(['foundation', 'beginner', 'weak'], 'Break down concepts into simple visual parts.');
-    const coreData = fallbackCategory(['core', 'intermediate', 'medium'], 'Combine core explanations with practical practice questions.');
-    const advancedData = fallbackCategory(['advanced', 'intelligent'], 'Challenge students with critical thinking and real-world applications.');
+    const foundationData = fallbackCategory(['foundation', 'beginner', 'weak']);
+    const coreData = fallbackCategory(['core', 'intermediate', 'medium']);
+    const advancedData = fallbackCategory(['advanced', 'intelligent']);
 
-    const responseJSON = {
-      greeting: structuredData.greeting || `Hello Teacher! Here is your structured teaching guide for "${topic}".`,
+    responseJSON = {
+      greeting: responseJSON.greeting || `Here is your differentiated lesson plan for "${topic.trim()}".`,
       foundation: foundationData,
       core: coreData,
       advanced: advancedData,
-      // Legacy aliases for backward compatibility with previously saved client threads
-      beginner: foundationData,
-      intermediate: coreData,
-      weak: foundationData,
-      medium: coreData,
-      intelligent: advancedData,
-      teachingTips: structuredData.teachingTips || 'Engage students with interactive discussions, quick checks for understanding, and practical examples.'
+      beginner: foundationData,            // Backward compatibility alias
+      intermediate: coreData,              // Backward compatibility alias
+      teachingTips: responseJSON.teachingTips || responseJSON.tips || ''
     };
 
     return res.json({
@@ -647,16 +677,36 @@ Return ONLY a valid raw JSON object matching this exact schema:
   } catch (err) {
     if (usageIncremented && cleanEmail) {
       await decrementMonthlyUsage(cleanEmail);
-      console.warn(`[Usage Limit] Rolled back usage count for ${cleanEmail} due to AI error: ${err.message}`);
+      console.warn(`[Usage Limit] Rolled back usage count for ${cleanEmail} due to error: ${err.message}`);
     }
-    console.error('Error in /api/generate:', err);
-    return res.status(500).json({ success: false, error: err.message || 'Server error while generating lesson plan.' });
+    console.error('Error in /api/generate:', err.message);
+
+    const statusCode = err.status || 500;
+    if (statusCode === 401) {
+      return res.status(401).json({
+        success: false,
+        error: err.message || 'Unauthorized: Valid Firebase ID token is required.'
+      });
+    }
+    if (statusCode === 400 || statusCode === 403) {
+      return res.status(statusCode).json({
+        success: false,
+        error: err.message
+      });
+    }
+
+    // Any Firestore or service account or AI connection failure:
+    return res.status(503).json({
+      success: false,
+      error: 'Service abhi available nahi, thori der baad try karein'
+    });
   }
 });
 
 // 4. Follow-Up Chat Endpoint
 app.post('/api/followup', async (req, res) => {
   try {
+    const decodedToken = await verifyFirebaseTokenFromRequest(req);
     const { topic, initialResponse, history, message } = req.body;
     if (!message || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ success: false, error: 'Follow-up message is required.' });
@@ -704,8 +754,21 @@ Instructions:
 
     return res.json({ success: true, reply: reply });
   } catch (err) {
-    console.error('Error in /api/followup:', err);
-    return res.status(500).json({ success: false, error: err.message || 'Server error processing follow-up.' });
+    console.error('Error in /api/followup:', err.message);
+    const statusCode = err.status || 500;
+    if (statusCode === 401) {
+      return res.status(401).json({
+        success: false,
+        error: err.message || 'Unauthorized: Valid Firebase ID token is required.'
+      });
+    }
+    if (statusCode === 400) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    return res.status(503).json({
+      success: false,
+      error: 'Service abhi available nahi, thori der baad try karein'
+    });
   }
 });
 
@@ -735,4 +798,13 @@ server.on('error', (err) => {
   } else {
     console.error('Server error:', err);
   }
+});
+
+// Process Crash Protection: Log errors without terminating server process
+process.on('uncaughtException', (err) => {
+  console.error('[Process Uncaught Exception]:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Process Unhandled Rejection]:', reason);
 });

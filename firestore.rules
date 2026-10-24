@@ -41,7 +41,8 @@ service cloud.firestore {
     // Check if the authenticated user is the designated administrator
     // Authority is derived from trusted bootstrap email or custom auth claims
     function isAdmin() {
-      return isAuthenticated() && (
+      return isAuthenticated() &&
+        request.auth.token.email_verified == true && (
         (request.auth.token.email != null && request.auth.token.email.lower() == 'warikhan1995@gmail.com') ||
         (request.auth.token.admin == true)
       );
@@ -50,6 +51,7 @@ service cloud.firestore {
     // Check if the authenticated user owns the resource based on email match
     function isUser(targetEmail) {
       return isAuthenticated() &&
+        request.auth.token.email_verified == true &&
         request.auth.token.email != null &&
         request.auth.token.email.lower() == targetEmail.lower();
     }

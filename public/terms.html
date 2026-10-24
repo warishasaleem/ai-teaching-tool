@@ -243,10 +243,10 @@
 
         <section>
           <h3><i class="fa-solid fa-envelope"></i> 5. Contact & Institutional Licensing</h3>
-          <p>For questions about these Terms of Service, assistance, or institutional School License inquiries, please reach out to our team:</p>
+          <p>For questions about these Terms of Service, assistance, or institutional School License inquiries, please reach out to our team at <a href="mailto:support@example.com" class="contact-email-link"><strong class="contact-email-text">support@example.com</strong></a>:</p>
           <p>
             <a href="mailto:support@example.com?subject=School%20License%20Inquiry%20-%20TEACHER%20AI" class="btn btn-outline touch-target contact-email-link" id="contactLicenseBtn">
-              <i class="fa-solid fa-envelope"></i> Contact Us
+              <i class="fa-solid fa-envelope"></i> Contact Us (<span class="contact-email-text">support@example.com</span>)
             </a>
           </p>
         </section>
@@ -275,7 +275,12 @@
       .then(data => {
         if (data && data.contactEmail) {
           document.querySelectorAll('.contact-email-link').forEach(link => {
-            link.href = 'mailto:' + encodeURIComponent(data.contactEmail) + '?subject=Inquiry%20-%20TEACHER%20AI';
+            const currentHref = link.getAttribute('href') || '';
+            const subject = currentHref.includes('School%20License') ? 'School%20License%20Inquiry%20-%20TEACHER%20AI' : 'Inquiry%20-%20TEACHER%20AI';
+            link.href = 'mailto:' + encodeURIComponent(data.contactEmail) + '?subject=' + subject;
+          });
+          document.querySelectorAll('.contact-email-text').forEach(el => {
+            el.textContent = data.contactEmail;
           });
         }
       })

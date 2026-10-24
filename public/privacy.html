@@ -243,10 +243,10 @@
 
         <section>
           <h3><i class="fa-solid fa-envelope"></i> 5. Contact Us</h3>
-          <p>If you have any questions about this Privacy Policy, your data, or would like to request data deletion, please contact our support team:</p>
+          <p>If you have any questions about this Privacy Policy, your data, or would like to request data deletion, please contact our support team at <a href="mailto:support@example.com" class="contact-email-link"><strong class="contact-email-text">support@example.com</strong></a>:</p>
           <p>
             <a href="mailto:support@example.com?subject=Privacy%20Inquiry%20-%20TEACHER%20AI" class="btn btn-outline touch-target contact-email-link" id="contactLicenseBtn">
-              <i class="fa-solid fa-envelope"></i> Contact Support
+              <i class="fa-solid fa-envelope"></i> Contact Support (<span class="contact-email-text">support@example.com</span>)
             </a>
           </p>
         </section>
@@ -275,7 +275,12 @@
       .then(data => {
         if (data && data.contactEmail) {
           document.querySelectorAll('.contact-email-link').forEach(link => {
-            link.href = 'mailto:' + encodeURIComponent(data.contactEmail) + '?subject=Privacy%20Inquiry%20-%20TEACHER%20AI';
+            const currentHref = link.getAttribute('href') || '';
+            const subject = currentHref.includes('Privacy') ? 'Privacy%20Inquiry%20-%20TEACHER%20AI' : 'Inquiry%20-%20TEACHER%20AI';
+            link.href = 'mailto:' + encodeURIComponent(data.contactEmail) + '?subject=' + subject;
+          });
+          document.querySelectorAll('.contact-email-text').forEach(el => {
+            el.textContent = data.contactEmail;
           });
         }
       })
