@@ -15,14 +15,22 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body class="dark-theme">
 
   <!-- ==========================================================================
+       0. AUTH BOOT LOADER (Shown until Firebase restores the session)
+       ========================================================================== -->
+  <div class="auth-boot-loader" id="authBootLoader">
+    <div class="loader-spinner"></div>
+    <p>Loading TEACHER AI...</p>
+  </div>
+
+  <!-- ==========================================================================
        1. FIREBASE AUTHENTICATION OVERLAY (Google Sign-In Entry Point)
        ========================================================================== -->
-  <div class="auth-overlay" id="authOverlay">
+  <div class="auth-overlay" id="authOverlay" style="display: none;">
     <div class="landing-page-wrapper">
       
       <!-- 1. LANDING TOP NAV -->
@@ -587,6 +595,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- App Script as Module for Firebase ES Imports -->
-  <script type="module" src="app.js?v=5"></script>
+  <script type="module" src="app.js?v=6"></script>
 </body>
 </html>

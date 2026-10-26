@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentUsage = { count: 0, limit: 10, remaining: 10, limitReached: false };
 
   // DOM Elements - Auth Overlay & App Layout
+  const authBootLoader = document.getElementById('authBootLoader');
   const authOverlay = document.getElementById('authOverlay');
   const appLayout = document.getElementById('appLayout');
   const googleSignInBtn = document.getElementById('googleSignInBtn');
@@ -453,6 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Hide Auth screen, Show App
+    hideBootLoader();
     authOverlay.style.display = 'none';
     appLayout.style.display = 'flex';
 
@@ -468,8 +470,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showAuthModal() {
+    hideBootLoader();
     authOverlay.style.display = 'flex';
     appLayout.style.display = 'none';
+  }
+
+  // Boot loader stays visible until Firebase reports the restored session
+  function hideBootLoader() {
+    if (authBootLoader) authBootLoader.style.display = 'none';
   }
 
   // --- MOBILE SIDEBAR DRAWER LOGIC ---
