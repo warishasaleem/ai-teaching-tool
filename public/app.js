@@ -109,24 +109,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const toastContainer = document.getElementById('toastContainer');
 
   // Initialize App & Firebase Auth Observer
-  let appContactEmail = 'support@example.com';
+  const FALLBACK_CONTACT_EMAIL = 'teacherai.support@gmail.com';
+  let appContactEmail = FALLBACK_CONTACT_EMAIL;
 
   async function loadAppConfig() {
     try {
       const res = await fetch('/api/config');
-      const data = await res.json();
-      if (data && data.contactEmail) {
-        appContactEmail = data.contactEmail;
-        updateContactLinks(appContactEmail);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.contactEmail && typeof data.contactEmail === 'string' && data.contactEmail.trim()) {
+          appContactEmail = data.contactEmail.trim();
+        }
       }
     } catch (e) {
-      console.warn('[Config] Failed to load server config:', e.message);
+      console.warn('[Config] Failed to load server config, using fallback:', e.message);
+    } finally {
+      updateContactLinks(appContactEmail);
     }
   }
 
   function updateContactLinks(email) {
-    if (!email) return;
-    const links = document.querySelectorAll('a#contactLicenseBtn, a.contact-email-link, a[data-contact-email]');
+    const targetEmail = (email && typeof email === 'string' && email.trim()) ? email.trim() : FALLBACK_CONTACT_EMAIL;
+    const links = document.querySelectorAll('a#contactLicenseBtn, a.contact-email-link, a[data-contact-email], a[href^="mailto:"]');
     links.forEach(l => {
       const currentHref = l.getAttribute('href') || '';
       let subject = 'Contact%20-%20TEACHER%20AI';
@@ -135,12 +139,28 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (currentHref.includes('Privacy')) {
         subject = 'Privacy%20Inquiry%20-%20TEACHER%20AI';
       }
-      l.href = `mailto:${encodeURIComponent(email)}?subject=${subject}`;
+      l.href = `mailto:${encodeURIComponent(targetEmail)}?subject=${subject}`;
     });
     document.querySelectorAll('.contact-email-text').forEach(el => {
-      el.textContent = email;
+      el.textContent = targetEmail;
     });
   }
+
+  // Global click listener to ensure all mailto links dynamically use the loaded contactEmail
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest && e.target.closest('a[href^="mailto:"], a#contactLicenseBtn, a.contact-email-link');
+    if (link) {
+      const targetEmail = (appContactEmail && appContactEmail.trim()) ? appContactEmail.trim() : FALLBACK_CONTACT_EMAIL;
+      const currentHref = link.getAttribute('href') || '';
+      let subject = 'Contact%20-%20TEACHER%20AI';
+      if (currentHref.includes('School%20License')) {
+        subject = 'School%20License%20Inquiry%20-%20TEACHER%20AI';
+      } else if (currentHref.includes('Privacy')) {
+        subject = 'Privacy%20Inquiry%20-%20TEACHER%20AI';
+      }
+      link.href = `mailto:${encodeURIComponent(targetEmail)}?subject=${subject}`;
+    }
+  });
 
   init();
 

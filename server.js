@@ -42,7 +42,7 @@ const GROQ_MODELS = [
 ];
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'warikhan1995@gmail.com';
-const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'support@example.com';
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'teacherai.support@gmail.com';
 
 // Monthly Free Plan Generation Limit per User
 const MONTHLY_FREE_LIMIT = 10;
@@ -295,7 +295,7 @@ app.get(['/privacy', '/privacy.html'], (req, res) => {
   const filePath = path.join(__dirname, 'public', 'privacy.html');
   try {
     let content = fs.readFileSync(filePath, 'utf8');
-    content = content.replace(/support@example\.com/g, CONTACT_EMAIL);
+    content = content.replace(/teacherai\.support@gmail\.com|support@example\.com/g, CONTACT_EMAIL);
     res.type('html').send(content);
   } catch (err) {
     res.sendFile(filePath);
@@ -306,7 +306,7 @@ app.get(['/terms', '/terms.html'], (req, res) => {
   const filePath = path.join(__dirname, 'public', 'terms.html');
   try {
     let content = fs.readFileSync(filePath, 'utf8');
-    content = content.replace(/support@example\.com/g, CONTACT_EMAIL);
+    content = content.replace(/teacherai\.support@gmail\.com|support@example\.com/g, CONTACT_EMAIL);
     res.type('html').send(content);
   } catch (err) {
     res.sendFile(filePath);
