@@ -24,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let firebaseUser = null;
   let threads = [];
   let activeThreadId = null;
-  let viewMode = 'tabbed'; // 'tabbed' or 'grid'
 
   // Monthly Usage Limit State (10 Plans / Calendar Month)
   let currentUsage = { count: 0, limit: 10, remaining: 10, limitReached: false };
@@ -48,10 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const sidebarUserName = document.getElementById('sidebarUserName');
   const sidebarUserEmail = document.getElementById('sidebarUserEmail');
   const sidebarUserAvatar = document.getElementById('sidebarUserAvatar');
-  const topUserName = document.getElementById('topUserName');
   const topUserAvatar = document.getElementById('topUserAvatar');
   const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
-  const topLogoutBtn = document.getElementById('topLogoutBtn');
 
   // DOM Elements - Sidebar & Backdrop
   const sidebar = document.getElementById('sidebar');
@@ -68,25 +65,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements - Header & Views
   const heroView = document.getElementById('heroView');
   const threadView = document.getElementById('threadView');
-  const currentTopicBadge = document.getElementById('currentTopicBadge');
   const activeTopicTitle = document.getElementById('activeTopicTitle');
-  const activeTopicActions = document.getElementById('activeTopicActions');
-  const viewTabbedBtn = document.getElementById('viewTabbedBtn');
-  const viewGridBtn = document.getElementById('viewGridBtn');
-  const copyFullPlanBtn = document.getElementById('copyFullPlanBtn');
-  const printPlanBtn = document.getElementById('printPlanBtn');
-  const deleteCurrentThreadBtn = document.getElementById('deleteCurrentThreadBtn');
+  const activeTopicClass = document.getElementById('activeTopicClass');
 
   // DOM Elements - Hero Input
   const topicInput = document.getElementById('topicInput');
+  const classSelect = document.getElementById('classSelect');
+  const navTopicTitle = document.getElementById('navTopicTitle');
   const generateBtn = document.getElementById('generateBtn');
   const promptChips = document.querySelectorAll('.chip-btn');
 
   // DOM Elements - Structured Cards
-  const greetingText = document.getElementById('greetingText');
-  const levelTabsHeader = document.getElementById('levelTabsHeader');
   const levelTabBtns = document.querySelectorAll('.level-tab-btn');
-  const levelCardsContainer = document.getElementById('levelCardsContainer');
   const weakCard = document.getElementById('weakCard');
   const mediumCard = document.getElementById('mediumCard');
   const intelligentCard = document.getElementById('intelligentCard');
@@ -207,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- QUICK ACTION PROMPTS FOR 6 FOLLOW-UP BUTTONS ---
-  function getQuickActionPrompt(action, topic) {
+  function getQuickActionPrompt(action, topic, thread) {
     const cleanTopic = topic || 'this topic';
     switch (action) {
       case 'pop-quiz':
@@ -216,14 +206,19 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'mcqs':
         return `Generate 10 Multiple-Choice Questions (MCQs) on the topic "${cleanTopic}". Each question must have exactly 4 options labeled A, B, C, and D. Number all questions clearly and list the correct answers separately at the end in an Answer Key.`;
 
-      case 'real-life':
-        return `Generate 5 simple real-life examples of "${cleanTopic}". Write them in language appropriate for children, connecting the topic directly to everyday things, household items, or experiences kids recognize.`;
-
-      case 'mini-research':
-        return `Generate exactly ONE take-home mini research and exploration task related to "${cleanTopic}" that students can easily do at home (e.g. observe something, ask a family member, or find an object). Include clear, simple step-by-step instructions on what to do and brief instructions on what to bring back or report to class.`;
-
-      case 'challenge':
-        return `Generate exactly 3 challenging, open-ended questions about "${cleanTopic}". For each question, provide a comprehensive model answer and key discussion talking points, written so they can be used to spark a classroom debate and discussion among students.`;
+      case 'answer-key': {
+        // The follow-up API only receives the explanations, so list the exercises here
+        const data = (thread && thread.initialResponse) || {};
+        const levels = [
+          ['Foundation', data.foundation || data.beginner || data.weak || {}],
+          ['Core', data.core || data.intermediate || data.medium || {}],
+          ['Advanced', data.advanced || data.intelligent || {}]
+        ];
+        const exerciseText = levels.map(([label, level]) =>
+          `${label}:\n` + (level.exercises || []).map((ex, i) => `${i + 1}. ${String(ex).replace(/^\d+[\.\)]\s*/, '')}`).join('\n')
+        ).join('\n\n');
+        return `Write a complete Answer Key for these exercises on "${cleanTopic}". Keep the Foundation, Core and Advanced headings, number each answer to match its question, and add a one-line explanation for each answer.\n\n${exerciseText}`;
+      }
 
       default:
         return '';
@@ -240,7 +235,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const limitReached = currentUsage.limitReached || remaining <= 0;
 
     const remainingText = `${remaining} free plans left this month`;
-    const navText = `${remaining} free plans left`;
+    // The pill's wording ("free plans left this month" / "left") lives in index.html
+    const navText = `${remaining}`;
 
     if (usageText) usageText.textContent = remainingText;
     if (inputUsageText) inputUsageText.textContent = remainingText;
@@ -401,7 +397,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (sidebarLogoutBtn) sidebarLogoutBtn.addEventListener('click', handleFirebaseLogout);
-    if (topLogoutBtn) topLogoutBtn.addEventListener('click', handleFirebaseLogout);
   }
 
   function onLoginSuccess(user) {
@@ -431,8 +426,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     sidebarUserName.textContent = user.name || 'Teacher Account';
-    sidebarUserEmail.textContent = user.email;
-    topUserName.textContent = (user.name || user.email.split('@')[0]).split(' ')[0];
+    if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
+    sidebarUserName.title = user.email;
+    topUserAvatar.title = user.name || user.email;
 
     // Show Admin Link if user is authorized administrator (verified server-side)
     const cleanEmail = (user.email || '').toLowerCase().trim();
@@ -491,6 +487,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
   }
 
+  // Mobile uses the slide-in drawer; desktop collapses the sidebar so the plan takes full width
+  function isMobileViewport() {
+    return window.matchMedia('(max-width: 768px)').matches;
+  }
+
+  function openSidebar() {
+    if (isMobileViewport()) {
+      openMobileSidebar();
+    } else {
+      appLayout.classList.remove('sidebar-collapsed');
+    }
+  }
+
+  function closeSidebar() {
+    if (isMobileViewport()) {
+      closeMobileSidebar();
+    } else {
+      appLayout.classList.add('sidebar-collapsed');
+    }
+  }
+
   // --- LOCAL STORAGE LOGIC (ISOLATED PER USER EMAIL) ---
   function getUserStorageKey() {
     if (!currentUser || !currentUser.email) return 'teacher_ai_threads_guest';
@@ -520,8 +537,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- EVENT LISTENERS ---
   function setupEventListeners() {
-    if (openSidebarBtn) openSidebarBtn.addEventListener('click', openMobileSidebar);
-    if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', closeMobileSidebar);
+    if (openSidebarBtn) openSidebarBtn.addEventListener('click', openSidebar);
+    if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', closeSidebar);
     if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeMobileSidebar);
 
     newTopicBtn.addEventListener('click', () => {
@@ -551,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
         topicInput.focus();
         return;
       }
-      handleGenerateNewTopic(val);
+      handleGenerateNewTopic(withSelectedClass(val));
     });
 
     topicInput.addEventListener('keydown', (e) => {
@@ -564,20 +581,18 @@ document.addEventListener('DOMContentLoaded', () => {
     promptChips.forEach(chip => {
       chip.addEventListener('click', () => {
         const topic = chip.getAttribute('data-topic');
+        const chipClass = chip.getAttribute('data-class');
         topicInput.value = topic;
-        handleGenerateNewTopic(topic);
+        if (classSelect && chipClass) classSelect.value = chipClass;
+        handleGenerateNewTopic(withSelectedClass(topic));
       });
     });
 
-    // Top Navigation View Switcher (Tabs vs Grid)
-    if (viewTabbedBtn) viewTabbedBtn.addEventListener('click', () => setViewMode('tabbed'));
-    if (viewGridBtn) viewGridBtn.addEventListener('click', () => setViewMode('grid'));
-
-    // In-Card Plan Toolbar View Switcher
-    const planViewTabbedBtn = document.getElementById('planViewTabbedBtn');
-    const planViewGridBtn = document.getElementById('planViewGridBtn');
-    if (planViewTabbedBtn) planViewTabbedBtn.addEventListener('click', () => setViewMode('tabbed'));
-    if (planViewGridBtn) planViewGridBtn.addEventListener('click', () => setViewMode('grid'));
+    // Mobile bottom bar: Share (phone share menu) + Copy
+    const sharePlanBtn = document.getElementById('sharePlanBtn');
+    const mobileCopyBtn = document.getElementById('mobileCopyBtn');
+    if (sharePlanBtn) sharePlanBtn.addEventListener('click', shareFullLessonPlan);
+    if (mobileCopyBtn) mobileCopyBtn.addEventListener('click', copyFullLessonPlan);
 
     levelTabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -592,22 +607,11 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Copy Full Plan Buttons (Both Top Nav and In-Card Toolbar)
-    if (copyFullPlanBtn) copyFullPlanBtn.addEventListener('click', copyFullLessonPlan);
+    // Copy Full Plan & Print Buttons (Plan Toolbar)
     const planCopyFullBtn = document.getElementById('planCopyFullBtn');
     if (planCopyFullBtn) planCopyFullBtn.addEventListener('click', copyFullLessonPlan);
-
-    // Print Plan Buttons (Both Top Nav and In-Card Toolbar)
-    if (printPlanBtn) printPlanBtn.addEventListener('click', () => window.print());
     const planPrintBtn = document.getElementById('planPrintBtn');
     if (planPrintBtn) planPrintBtn.addEventListener('click', () => window.print());
-
-    deleteCurrentThreadBtn.addEventListener('click', () => {
-      if (!activeThreadId) return;
-      if (confirm('Delete this topic thread from your private history?')) {
-        deleteThread(activeThreadId);
-      }
-    });
 
     document.querySelectorAll('.copy-sec-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -662,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const thread = getActiveThread();
         const topic = (thread && thread.topic) ? thread.topic : (topicInput.value.trim() || 'this topic');
-        const promptText = getQuickActionPrompt(action, topic);
+        const promptText = getQuickActionPrompt(action, topic, thread);
         if (promptText) {
           followUpInput.value = promptText;
           handleSendFollowUp();
@@ -670,57 +674,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // --- RELATED RESOURCES BUTTON ---
-    const relatedResourcesBtn = document.getElementById('relatedResourcesBtn');
-    const relatedResourcesPanel = document.getElementById('relatedResourcesPanel');
-    const resourcesTopicLabel = document.getElementById('resourcesTopicLabel');
-    const resourcesList = document.getElementById('resourcesList');
-    const closeResourcesPanel = document.getElementById('closeResourcesPanel');
-
-    if (relatedResourcesBtn) {
-      relatedResourcesBtn.addEventListener('click', () => {
-        const thread = threads.find(t => t.id === activeThreadId);
-        const topic = (thread && thread.topic) ? thread.topic : (topicInput.value.trim() || 'teaching');
-        const encoded = encodeURIComponent(topic);
-
-        const links = [
-          {
-            emoji: '🔍',
-            label: 'Search Google for activities',
-            url: `https://www.google.com/search?q=${encoded}+teaching+activities`
-          },
-          {
-            emoji: '📄',
-            label: 'Printable worksheets (Google)',
-            url: `https://www.google.com/search?q=${encoded}+worksheets+printable`
-          },
-          {
-            emoji: '📌',
-            label: 'Pinterest teaching ideas',
-            url: `https://www.pinterest.com/search/pins/?q=${encoded}+teaching+ideas`
-          },
-          {
-            emoji: '🎥',
-            label: 'YouTube lesson explanations',
-            url: `https://www.youtube.com/results?search_query=${encoded}+lesson+explanation`
-          }
-        ];
-
-        resourcesTopicLabel.textContent = topic;
-        resourcesList.innerHTML = links.map(link =>
-          `<li><a class="resource-link" href="${link.url}" target="_blank" rel="noopener noreferrer">${link.emoji} ${link.label}</a></li>`
-        ).join('');
-
-        relatedResourcesPanel.style.display = 'block';
-        relatedResourcesPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      });
-    }
-
-    if (closeResourcesPanel) {
-      closeResourcesPanel.addEventListener('click', () => {
-        relatedResourcesPanel.style.display = 'none';
-      });
-    }
   }
 
   // --- API ACTIONS ---
@@ -914,9 +867,23 @@ document.addEventListener('DOMContentLoaded', () => {
     activeThreadId = null;
     heroView.style.display = 'flex';
     threadView.style.display = 'none';
-    currentTopicBadge.style.display = 'none';
-    activeTopicActions.style.display = 'none';
+    appLayout.classList.remove('is-plan-view');
     renderSidebar();
+  }
+
+  // Adds the chosen class to the topic ("Fractions" -> "Fractions (Class 5)") unless the topic already names one
+  function withSelectedClass(topic) {
+    if (!classSelect || /\b(?:grade|class)\s*\d{1,2}\b/i.test(topic)) return topic;
+    return `${topic} (Class ${classSelect.value})`;
+  }
+
+  // Splits "Photosynthesis for Grade 7" into a heading and a "Class 7" label
+  function splitTopicAndClass(topic) {
+    const text = (topic || '').trim();
+    const match = text.match(/\(?\b(?:grade|class)\s*(\d{1,2})\b\)?/i);
+    if (!match) return { title: text, classLabel: '' };
+    const title = text.replace(match[0], '').replace(/\s+(?:for|in)\s*$/i, '').replace(/[\s,\-–:]+$/, '').trim();
+    return { title: title || text, classLabel: `Class ${match[1]}` };
   }
 
   function loadThread(threadId) {
@@ -925,12 +892,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     activeThreadId = thread.id;
     
-    activeTopicTitle.textContent = thread.topic;
-    currentTopicBadge.style.display = 'inline-flex';
-    activeTopicActions.style.display = 'flex';
+    const { title, classLabel } = splitTopicAndClass(thread.topic);
+    activeTopicTitle.textContent = title;
+    activeTopicClass.textContent = classLabel;
+    activeTopicClass.style.display = classLabel ? 'block' : 'none';
+    if (navTopicTitle) navTopicTitle.textContent = classLabel ? `${title} · ${classLabel}` : title;
+    appLayout.classList.add('is-plan-view');
 
     const data = thread.initialResponse;
-    greetingText.textContent = data.greeting || `Hello Teacher! Here is your differentiated plan for "${thread.topic}".`;
 
     const foundation = data.foundation || data.beginner || data.weak || {};
     const core = data.core || data.intermediate || data.medium || {};
@@ -1044,11 +1013,13 @@ document.addEventListener('DOMContentLoaded', () => {
       li.className = `history-item ${t.id === activeThreadId ? 'active' : ''}`;
       
       const relTime = formatRelativeTime(t.updatedAt || t.createdAt);
+      const { title, classLabel } = splitTopicAndClass(t.topic);
+      const metaText = classLabel ? `${classLabel} · ${relTime}` : relTime;
 
       li.innerHTML = `
         <div class="history-item-content">
-          <span class="history-item-title">${escapeHtml(t.topic)}</span>
-          <span class="history-item-date">${relTime}</span>
+          <span class="history-item-title">${escapeHtml(title)}</span>
+          <span class="history-item-date">${escapeHtml(metaText)}</span>
         </div>
         <button class="del-thread-btn touch-target" title="Delete Topic Thread"><i class="fa-solid fa-xmark"></i></button>
       `;
@@ -1078,35 +1049,32 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Topic thread deleted.');
   }
 
-  function setViewMode(mode) {
-    viewMode = mode;
-    const planViewTabbedBtn = document.getElementById('planViewTabbedBtn');
-    const planViewGridBtn = document.getElementById('planViewGridBtn');
-
-    if (mode === 'tabbed') {
-      if (viewTabbedBtn) viewTabbedBtn.classList.add('active');
-      if (viewGridBtn) viewGridBtn.classList.remove('active');
-      if (planViewTabbedBtn) planViewTabbedBtn.classList.add('active');
-      if (planViewGridBtn) planViewGridBtn.classList.remove('active');
-
-      levelCardsContainer.classList.add('tabbed-mode');
-      levelCardsContainer.classList.remove('grid-mode');
-      levelTabsHeader.style.display = 'flex';
-    } else {
-      if (viewGridBtn) viewGridBtn.classList.add('active');
-      if (viewTabbedBtn) viewTabbedBtn.classList.remove('active');
-      if (planViewGridBtn) planViewGridBtn.classList.add('active');
-      if (planViewTabbedBtn) planViewTabbedBtn.classList.remove('active');
-
-      levelCardsContainer.classList.remove('tabbed-mode');
-      levelCardsContainer.classList.add('grid-mode');
-      levelTabsHeader.style.display = 'none';
-    }
+  function copyFullLessonPlan() {
+    const fullText = buildFullPlanText();
+    if (!fullText) return;
+    copyToClipboard(fullText);
+    showToast('Full lesson plan & activities copied to clipboard!');
   }
 
-  function copyFullLessonPlan() {
+  // Opens the phone's share menu; falls back to copying where sharing is not supported
+  async function shareFullLessonPlan() {
+    const fullText = buildFullPlanText();
+    if (!fullText) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Teacher AI lesson plan', text: fullText });
+      } catch (err) {
+        if (err.name !== 'AbortError') showToast('Could not open share menu.', 'error');
+      }
+      return;
+    }
+    copyToClipboard(fullText);
+    showToast('Sharing is not available here, so the plan was copied instead.');
+  }
+
+  function buildFullPlanText() {
     const thread = getActiveThread();
-    if (!thread || !thread.initialResponse) return;
+    if (!thread || !thread.initialResponse) return '';
 
     const data = thread.initialResponse;
     let fullText = `=== TEACHER AI - LESSON PLAN ===\nTOPIC: ${(thread.topic || '').toUpperCase()}\n\n`;
@@ -1145,8 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    copyToClipboard(fullText);
-    showToast('Full lesson plan & activities copied to clipboard!');
+    return fullText;
   }
 
   // --- HELPERS & UTILS ---
