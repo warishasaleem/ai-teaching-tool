@@ -33,13 +33,18 @@ try {
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-// Fallback Model List to guarantee 100% uptime and zero rate-limit crashes
-const GROQ_MODELS = [
-  'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
-  'groq/compound-mini',
-  'groq/compound'
-];
+// Groq models, period timings and prompts live in ai-config.js
+const {
+  GROQ_MODELS,
+  GENERATE_SETTINGS,
+  FOLLOWUP_SETTINGS,
+  PERIOD_LENGTHS,
+  DEFAULT_PERIOD_LENGTH,
+  PERIOD_TIMINGS,
+  buildGenerateSystemPrompt,
+  buildGenerateUserPrompt,
+  buildFollowupSystemPrompt
+} = require('./ai-config');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'warikhan1995@gmail.com';
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'teacherai.support@gmail.com';
@@ -388,6 +393,39 @@ async function callGroqAPIWithFallback(basePayload) {
   throw lastError || new Error('All Groq API models exhausted.');
 }
 
+// Helper: Clean the AI's period plan into a fixed shape; minutes always come from PERIOD_TIMINGS
+function normalizePeriodPlan(raw, periodLength) {
+  const p = (raw && typeof raw === 'object') ? raw : {};
+  const text = (v) => (typeof v === 'string' ? v.trim() : '');
+  const list = (v) => {
+    if (Array.isArray(v)) return v.map(item => String(item).trim()).filter(Boolean);
+    return typeof v === 'string' && v.trim() ? [v.trim()] : [];
+  };
+  const asObject = (v, key) => (v && typeof v === 'object' && !Array.isArray(v)) ? v : { [key]: v };
+  const explain = asObject(p.explain, 'steps');
+  const groupWork = asObject(p.groupWork, 'foundation');
+  const check = asObject(p.check, 'exitTicket');
+  const steam = asObject(p.steam, 'activity');
+
+  return {
+    periodLength,
+    timings: { ...PERIOD_TIMINGS[periodLength] },
+    hook: text(p.hook),
+    explain: { steps: text(explain.steps), board: list(explain.board) },
+    groupWork: {
+      foundation: text(groupWork.foundation),
+      core: text(groupWork.core),
+      advanced: text(groupWork.advanced),
+      finishedEarly: text(groupWork.finishedEarly)
+    },
+    check: { exitTicket: list(check.exitTicket) },
+    homework: text(p.homework),
+    steam: { focus: list(steam.focus), activity: text(steam.activity) },
+    classManagement: text(p.classManagement),
+    materials: list(p.materials)
+  };
+}
+
 // 1. Endpoint: Login Notification Trigger
 app.post('/api/notify-login', async (req, res) => {
   try {
@@ -528,6 +566,9 @@ app.post('/api/generate', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Topic is required.' });
     }
 
+    const requestedLength = Number(req.body.periodLength);
+    const periodLength = PERIOD_LENGTHS.includes(requestedLength) ? requestedLength : DEFAULT_PERIOD_LENGTH;
+
     // 2. SERVER-SIDE CHECK: Check monthly usage limit in Firestore BEFORE calling Groq AI
     const usageCheck = await getMonthlyUsage(cleanEmail);
     if (usageCheck.limitReached) {
@@ -558,67 +599,13 @@ app.post('/api/generate', async (req, res) => {
 
     console.log(`[Usage Limit] Teacher ${cleanEmail} generating plan: count=${usageUpdate.count}/${MONTHLY_FREE_LIMIT}, remaining=${usageUpdate.remaining}`);
 
-    const systemPrompt = `You are TEACHER AI, a world-class AI teaching assistant built for educators.
-Your goal is to generate differentiated teaching content tailored for 3 student learning levels (Foundation, Core, Advanced).
-
-MUST FOLLOW THIS EXACT RESPONSE STRUCTURE & FORMAT:
-1. GREETING — short, warm opening line addressing the teacher.
-2. THREE CATEGORY SECTIONS clearly structured:
-   - "Foundation": simpler language, basic exercises, step-by-step breakdown.
-   - "Core": moderate difficulty, balanced explanation + practice.
-   - "Advanced": advanced exercises, deeper conceptual questions.
-   
-   EACH category must include:
-   - "howToExplain": Short explanation of how to present the topic to this student level.
-   - "exercises": Array of MINIMUM 5 exercises/questions (mix of MCQs, short answer, applied questions).
-
-3. "teachingTips" — 1-2 paragraphs giving a general teaching strategy for this topic.
-
-STRICT JSON OUTPUT REQUIREMENT:
-Return ONLY a valid raw JSON object matching this exact schema:
-{
-  "greeting": "Short warm opening line...",
-  "foundation": {
-    "howToExplain": "...",
-    "exercises": [
-      "1. ...",
-      "2. ...",
-      "3. ...",
-      "4. ...",
-      "5. ..."
-    ]
-  },
-  "core": {
-    "howToExplain": "...",
-    "exercises": [
-      "1. ...",
-      "2. ...",
-      "3. ...",
-      "4. ...",
-      "5. ..."
-    ]
-  },
-  "advanced": {
-    "howToExplain": "...",
-    "exercises": [
-      "1. ...",
-      "2. ...",
-      "3. ...",
-      "4. ...",
-      "5. ..."
-    ]
-  },
-  "teachingTips": "..."
-}`;
-
     const basePayload = {
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Topic to teach: "${topic.trim()}"` }
+        { role: 'system', content: buildGenerateSystemPrompt(periodLength) },
+        { role: 'user', content: buildGenerateUserPrompt(topic.trim()) }
       ],
-      temperature: 0.7,
-      max_tokens: 2500
+      ...GENERATE_SETTINGS
     };
 
     const groqRes = await callGroqAPIWithFallback(basePayload);
@@ -656,6 +643,7 @@ Return ONLY a valid raw JSON object matching this exact schema:
 
     responseJSON = {
       greeting: responseJSON.greeting || `Here is your differentiated lesson plan for "${topic.trim()}".`,
+      periodPlan: normalizePeriodPlan(responseJSON.periodPlan, periodLength),
       foundation: foundationData,
       core: coreData,
       advanced: advancedData,
@@ -712,20 +700,7 @@ app.post('/api/followup', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Follow-up message is required.' });
     }
 
-    const systemPrompt = `You are TEACHER AI, an interactive AI teaching assistant.
-The teacher is currently asking follow-up questions about the topic: "${topic || 'Lesson Topic'}".
-
-Context of Initial Differentiated Teaching Plan provided earlier:
-Greeting: ${initialResponse?.greeting || ''}
-Foundation Level How To Explain: ${initialResponse?.foundation?.howToExplain || initialResponse?.beginner?.howToExplain || initialResponse?.weak?.howToExplain || ''}
-Core Level How To Explain: ${initialResponse?.core?.howToExplain || initialResponse?.intermediate?.howToExplain || initialResponse?.medium?.howToExplain || ''}
-Advanced Level How To Explain: ${initialResponse?.advanced?.howToExplain || initialResponse?.intelligent?.howToExplain || ''}
-Teaching Tips: ${initialResponse?.teachingTips || ''}
-
-Instructions:
-- Provide clear, direct, and practical answers for teachers.
-- If the teacher asks to modify exercises, add questions, simplify explanations, or create a quiz/worksheet, provide the requested content directly with clear formatting using markdown (bullet points, bold text, numbered lists).
-- Keep your tone warm, encouraging, and highly professional.`;
+    const systemPrompt = buildFollowupSystemPrompt(topic, initialResponse);
 
     const messages = [
       { role: 'system', content: systemPrompt }
@@ -745,8 +720,7 @@ Instructions:
 
     const basePayload = {
       messages: messages,
-      temperature: 0.7,
-      max_tokens: 2000
+      ...FOLLOWUP_SETTINGS
     };
 
     const groqRes = await callGroqAPIWithFallback(basePayload);

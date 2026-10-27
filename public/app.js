@@ -77,6 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // DOM Elements - Structured Cards
   const levelTabBtns = document.querySelectorAll('.level-tab-btn');
+  const periodCard = document.getElementById('periodCard');
+  const periodTabBtn = document.getElementById('periodTabBtn');
+  const planSteamChip = document.getElementById('planSteamChip');
   const weakCard = document.getElementById('weakCard');
   const mediumCard = document.getElementById('mediumCard');
   const intelligentCard = document.getElementById('intelligentCard');
@@ -214,10 +217,27 @@ document.addEventListener('DOMContentLoaded', () => {
           ['Core', data.core || data.intermediate || data.medium || {}],
           ['Advanced', data.advanced || data.intelligent || {}]
         ];
-        const exerciseText = levels.map(([label, level]) =>
-          `${label}:\n` + (level.exercises || []).map((ex, i) => `${i + 1}. ${String(ex).replace(/^\d+[\.\)]\s*/, '')}`).join('\n')
+        const sections = levels.map(([label, level]) => ({ label, questions: level.exercises || [] }));
+        // The Period Plan's 3-question exit ticket gets answers too
+        const exitTicket = (data.periodPlan && data.periodPlan.check && data.periodPlan.check.exitTicket) || [];
+        if (exitTicket.length) sections.push({ label: 'Exit ticket', questions: exitTicket });
+
+        const exerciseText = sections.map(({ label, questions }) =>
+          `${label}:\n` + questions.map((ex, i) => `Q${i + 1}. ${String(ex).replace(/^\d+[\.\)]\s*/, '')}`).join('\n')
         ).join('\n\n');
-        return `Write a complete Answer Key for these exercises on "${cleanTopic}". Keep the Foundation, Core and Advanced headings, number each answer to match its question, and add a one-line explanation for each answer.\n\n${exerciseText}`;
+
+        return `Write an Answer Key for these questions on "${cleanTopic}". The teacher reads it next to the lesson plan, so every answer must be easy to match with its question.
+
+Rules:
+- Do NOT use tables.
+- Use one heading per section (${sections.map(s => s.label).join(', ')}).
+- Under each heading, for EVERY question use exactly this format and keep the same Q number:
+  - **Q1.** <the question, repeated in full>
+    - **Answer:** <the answer>
+    - **Why:** <one short line>
+- If a question needs a picture or drawing, describe what a correct answer looks like in words.
+
+${exerciseText}`;
       }
 
       default:
@@ -595,16 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mobileCopyBtn) mobileCopyBtn.addEventListener('click', copyFullLessonPlan);
 
     levelTabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const targetLevel = btn.getAttribute('data-level');
-        levelTabBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        [weakCard, mediumCard, intelligentCard].forEach(card => card.classList.remove('active'));
-        if (targetLevel === 'foundation' || targetLevel === 'beginner' || targetLevel === 'weak') weakCard.classList.add('active');
-        if (targetLevel === 'core' || targetLevel === 'intermediate' || targetLevel === 'medium') mediumCard.classList.add('active');
-        if (targetLevel === 'advanced' || targetLevel === 'intelligent') intelligentCard.classList.add('active');
-      });
+      btn.addEventListener('click', () => showLevelTab(btn.getAttribute('data-level')));
     });
 
     // Copy Full Plan & Print Buttons (Plan Toolbar)
@@ -691,17 +702,19 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    showLoading('Generating Differentiated Lesson Plan...', 'Creating tailored explanations & 5+ exercises for Foundation, Core, and Advanced tiers.');
-    
+    const periodLength = getSelectedPeriodLength();
+    showLoading('Making your period plan...', `A ${periodLength}-minute plan with group work for Foundation, Core and Advanced.`);
+
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          topic: topicName
+        body: JSON.stringify({
+          topic: topicName,
+          periodLength
         })
       });
 
@@ -735,6 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const newThread = {
         id: 'thread_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
         topic: topicName,
+        periodLength,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         initialResponse: result.data,
@@ -877,6 +891,120 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${topic} (Class ${classSelect.value})`;
   }
 
+  function getSelectedPeriodLength() {
+    const picked = document.querySelector('input[name="periodLength"]:checked');
+    const value = picked ? Number(picked.value) : 40;
+    return [35, 40, 45].includes(value) ? value : 40;
+  }
+
+  // Shows one tab (period / foundation / core / advanced) and its card
+  function showLevelTab(level) {
+    const cards = { period: periodCard, foundation: weakCard, core: mediumCard, advanced: intelligentCard };
+    levelTabBtns.forEach(b => b.classList.toggle('active', b.getAttribute('data-level') === level));
+    Object.values(cards).forEach(card => card && card.classList.remove('active'));
+    if (cards[level]) cards[level].classList.add('active');
+  }
+
+  // Builds the minute-by-minute Period Plan card from the server's periodPlan object
+  function renderPeriodPlan(plan, classLabel) {
+    const timeline = document.getElementById('periodTimeline');
+    const extras = document.getElementById('periodExtras');
+    const metaMobile = document.getElementById('periodMetaMobile');
+    timeline.innerHTML = '';
+    extras.innerHTML = '';
+
+    if (!plan) {
+      activeTopicClass.textContent = classLabel;
+      planSteamChip.style.display = 'none';
+      metaMobile.textContent = '';
+      return;
+    }
+
+    const esc = escapeHtml;
+    const t = plan.timings || {};
+    const steamText = (plan.steam && plan.steam.focus && plan.steam.focus.length)
+      ? `STEAM: ${plan.steam.focus.join(' + ')}` : '';
+    const periodText = `${plan.periodLength} minute period`;
+
+    activeTopicClass.textContent = [classLabel, periodText].filter(Boolean).join(' · ');
+    planSteamChip.textContent = steamText;
+    planSteamChip.style.display = steamText ? 'inline-block' : 'none';
+    metaMobile.innerHTML = `${esc(periodText)}${steamText ? ` · <strong>${esc(steamText)}</strong>` : ''}`;
+
+    // Minute ranges are worked out from the timings so they always add up to the period length
+    let cursor = 0;
+    const range = (mins) => {
+      const from = cursor;
+      cursor += Number(mins) || 0;
+      return `${from}–${cursor} min`;
+    };
+    const row = (time, title, body) => `
+      <div class="period-row">
+        <div class="period-time">${esc(time)}</div>
+        <div class="period-body"><h3>${esc(title)}</h3>${body}</div>
+      </div>`;
+
+    const gw = plan.groupWork || {};
+    const board = (plan.explain && plan.explain.board) || [];
+    const ticket = (plan.check && plan.check.exitTicket) || [];
+
+    timeline.innerHTML = [
+      row(range(t.hook), 'Hook', `<p>${esc(plan.hook)}</p>`),
+      row(range(t.explain), 'Explain', `
+        <p>${esc(plan.explain && plan.explain.steps)}</p>
+        ${board.length ? `<div class="board-box"><span class="board-label">Write on the board</span>${board.map(l => `<div>${esc(l)}</div>`).join('')}</div>` : ''}`),
+      row(range(t.groupWork), 'Group work: all three groups at the same time', `
+        <div class="group-grid">
+          <div class="group-box foundation"><strong>Foundation</strong><p>${esc(gw.foundation)}</p></div>
+          <div class="group-box core"><strong>Core</strong><p>${esc(gw.core)}</p></div>
+          <div class="group-box advanced"><strong>Advanced</strong><p>${esc(gw.advanced)}</p></div>
+        </div>
+        ${gw.finishedEarly ? `<p class="finished-early">Finished early? ${esc(gw.finishedEarly)}</p>` : ''}`),
+      row(range(t.check), 'Check', ticket.length
+        ? `<p>Exit ticket: 3 quick questions.</p><ol class="ticket-list">${ticket.map(q => `<li>${esc(q)}</li>`).join('')}</ol>`
+        : '<p>Exit ticket: 3 quick questions.</p>'),
+      row(range(t.homework), 'Homework', `<p>${esc(plan.homework)}</p>`)
+    ].join('');
+
+    const card = (title, body) => `<div class="extra-card"><h3>${esc(title)}</h3>${body}</div>`;
+    const materials = plan.materials || [];
+    extras.innerHTML = [
+      plan.steam && plan.steam.activity ? card('STEAM activity', `<p>${esc(plan.steam.activity)}</p>`) : '',
+      plan.classManagement ? card('Class management', `<p>${esc(plan.classManagement)}</p>`) : '',
+      materials.length ? card('You will need', `<p>${materials.map(esc).join(', ')}</p>`) : ''
+    ].join('');
+  }
+
+  // Plain-text version of the Period Plan for Copy / Share
+  function buildPeriodPlanText(plan) {
+    if (!plan || !plan.hook) return '';
+    const t = plan.timings || {};
+    let cursor = 0;
+    const range = (mins) => {
+      const from = cursor;
+      cursor += Number(mins) || 0;
+      return `${from}-${cursor} min`;
+    };
+    const gw = plan.groupWork || {};
+    const lines = [];
+    lines.push(`--- PERIOD PLAN (${plan.periodLength} minutes) ---`);
+    lines.push(`${range(t.hook)} HOOK: ${plan.hook}`);
+    lines.push(`${range(t.explain)} EXPLAIN: ${plan.explain.steps}`);
+    if (plan.explain.board.length) lines.push(`  Write on the board:\n${plan.explain.board.map(l => `   - ${l}`).join('\n')}`);
+    lines.push(`${range(t.groupWork)} GROUP WORK (all groups at the same time):`);
+    lines.push(`  Foundation: ${gw.foundation}`);
+    lines.push(`  Core: ${gw.core}`);
+    lines.push(`  Advanced: ${gw.advanced}`);
+    if (gw.finishedEarly) lines.push(`  Finished early: ${gw.finishedEarly}`);
+    lines.push(`${range(t.check)} CHECK (exit ticket):`);
+    plan.check.exitTicket.forEach((q, i) => lines.push(`  ${i + 1}. ${q}`));
+    lines.push(`${range(t.homework)} HOMEWORK: ${plan.homework}`);
+    if (plan.steam.activity) lines.push(`\nSTEAM${plan.steam.focus.length ? ` (${plan.steam.focus.join(', ')})` : ''}: ${plan.steam.activity}`);
+    if (plan.classManagement) lines.push(`\nCLASS MANAGEMENT: ${plan.classManagement}`);
+    if (plan.materials.length) lines.push(`\nYOU WILL NEED: ${plan.materials.join(', ')}`);
+    return lines.join('\n') + '\n\n';
+  }
+
   // Splits "Photosynthesis for Grade 7" into a heading and a "Class 7" label
   function splitTopicAndClass(topic) {
     const text = (topic || '').trim();
@@ -894,12 +1022,16 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const { title, classLabel } = splitTopicAndClass(thread.topic);
     activeTopicTitle.textContent = title;
-    activeTopicClass.textContent = classLabel;
-    activeTopicClass.style.display = classLabel ? 'block' : 'none';
     if (navTopicTitle) navTopicTitle.textContent = classLabel ? `${title} · ${classLabel}` : title;
     appLayout.classList.add('is-plan-view');
 
     const data = thread.initialResponse;
+
+    // Period Plan tab (plans made before this feature have none, so the tab is hidden for them)
+    const hasPeriodPlan = !!(data.periodPlan && data.periodPlan.hook);
+    renderPeriodPlan(hasPeriodPlan ? data.periodPlan : null, classLabel);
+    periodTabBtn.style.display = hasPeriodPlan ? '' : 'none';
+    showLevelTab(hasPeriodPlan ? 'period' : 'foundation');
 
     const foundation = data.foundation || data.beginner || data.weak || {};
     const core = data.core || data.intermediate || data.medium || {};
@@ -1082,6 +1214,9 @@ document.addEventListener('DOMContentLoaded', () => {
       fullText += `GREETING:\n${data.greeting}\n\n`;
     }
     
+    // 0. Period Plan (minute by minute)
+    fullText += buildPeriodPlanText(data.periodPlan);
+
     // 1. Foundation
     const foundation = data.foundation || data.beginner || data.weak || {};
     fullText += `--- 1. FOUNDATION ---\nHow to Explain: ${foundation.howToExplain || ''}\nExercises:\n`;
