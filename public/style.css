@@ -3339,3 +3339,73 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, a {
 .engagement-intro { margin: 0.5rem 0 1rem; color: var(--color-text-muted, #666); }
 .engagement-list { padding-left: 1.4rem; display: grid; gap: 0.75rem; }
 .engagement-list li { font-size: 1rem; line-height: 1.5; }
+
+/* ===== Warm look, ONE theme: terracotta + cream (v16) ===== */
+:root { --bg-dark: #FAF8F5; --bg-input: #f4f0ea; --border-color: #ebe4d8;
+  --t-accent: #d9622b; --t-accent-dark: #b4491b; --t-tint: #fdf1e8; --t-tint-2: #fae3d2; }
+html, body, .main-content { background-color: #FAF8F5; }
+
+/* Tabs: same colour, active one filled */
+.level-tab-btn { color: #6b5d50; }
+.level-tab-btn.active,
+.level-tab-btn.period-tab.active, .level-tab-btn.foundation-tab.active,
+.level-tab-btn.core-tab.active, .level-tab-btn.engagement-tab.active {
+  color: var(--t-accent-dark); background: var(--t-tint); border-bottom: 3px solid var(--t-accent); }
+.foundation-card, .core-card, .engagement-card { border-top-color: var(--t-accent); }
+.level-pill { background: var(--t-tint) !important; color: var(--t-accent-dark) !important; }
+
+/* Period Plan sections: white cards, terracotta left border */
+.period-row, .extra-card { background: #fff; border: 1px solid var(--border-color); border-left: 6px solid var(--t-accent); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 0.9rem; }
+.period-time { color: var(--t-accent-dark); }
+.period-row h3, .extra-card h3 { font-size: 1.25rem; margin-bottom: 0.6rem; }
+.period-body p, .extra-card p { line-height: 1.8; margin-bottom: 0.7rem; }
+.period-body p:last-child, .extra-card p:last-child { margin-bottom: 0; }
+.ticket-list li { margin-bottom: 0.4rem; }
+.board-box { background: var(--t-tint); border-color: var(--t-tint-2); }
+.group-box.foundation, .group-box.core { background: var(--t-tint); border-left: 4px solid var(--t-accent); }
+.group-box.foundation strong, .group-box.core strong { color: var(--t-accent-dark); }
+
+/* Popup buttons: one soft style */
+.chat-chip { background: var(--t-tint); border-color: var(--t-accent); color: var(--t-accent-dark); }
+.chat-chip:hover { background: var(--t-tint-2); }
+
+/* Engagement tips: numbered cards */
+.engagement-list { list-style: none; padding: 0; counter-reset: tip; gap: 0.8rem; }
+.engagement-list li { counter-increment: tip; position: relative; padding: 0.9rem 1rem 0.9rem 3.4rem; border-radius: 10px; line-height: 1.7; background: #fff; border: 1px solid var(--border-color); border-left: 6px solid var(--t-accent); }
+.engagement-list li::before { content: counter(tip); position: absolute; left: 0.9rem; top: 0.8rem; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--t-accent); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+/* Readability */
+.explain-box p, .exercises-list, .exercise-item { line-height: 1.8; }
+.explain-box h4, .exercises-box h4 { font-size: 1.15rem; }
+
+/* Print: black and white, no emoji, no clipping */
+@media print {
+  html, body, .main-content, .app-layout, .plan-page, #threadView { background: #fff !important; height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; }
+  .suggestion-chips, .chat-thread-container { display: none !important; }
+  .period-card, .level-card, .level-cards-container, .structured-plan-card, .period-timeline, .period-extras { break-inside: auto !important; page-break-inside: auto !important; min-height: 0 !important; height: auto !important; overflow: visible !important; }
+  .period-row, .extra-card, .group-box, .engagement-list li { break-inside: avoid; page-break-inside: avoid; background: #fff !important; color: #000 !important; border: 1px solid #000 !important; border-left: 4px solid #000 !important; border-radius: 0 !important; }
+  .board-box { background: #fff !important; border: 1px solid #000 !important; border-radius: 0 !important; }
+  .level-card { background: #fff !important; border: 0 !important; box-shadow: none !important; }
+  .engagement-list li::before { background: #000 !important; color: #fff !important; }
+  .period-time, .period-row h3, .extra-card h3, .group-box strong, .level-pill { color: #000 !important; background: #fff !important; }
+  .emoji { display: none !important; }
+}
+
+/* Popup (Pop Quiz, MCQs...) in the terracotta theme */
+@media screen {
+  .quick-popup-box { background: #FAF8F5; border: 1px solid var(--border-color); border-top: 6px solid var(--t-accent); border-radius: 14px; }
+  .quick-popup-head { background: var(--t-tint); border-bottom: 1px solid var(--t-tint-2); }
+  .quick-popup-head h3 { color: var(--t-accent-dark); font-size: 1.25rem; }
+  .quick-popup-head .icon-btn { color: var(--t-accent-dark); }
+  .quick-popup-scroll { background: #fff; line-height: 1.8; }
+  .quick-popup-body ol li::marker, .quick-popup-answers ol li::marker { color: var(--t-accent-dark); font-weight: 700; }
+  .quick-popup-body ul li::marker, .quick-popup-answers ul li::marker { color: var(--t-accent); }
+  .quick-popup-topic, .quick-popup-loading { color: var(--t-accent-dark); }
+  .quick-answers-heading { color: var(--t-accent-dark); }
+  .quick-popup-answers { border-top: 1px dashed var(--t-accent); background: var(--t-tint); padding: 1rem; border-radius: 10px; }
+  .quick-popup .resource-link { color: var(--t-accent-dark); background: var(--t-tint); border: 1px solid var(--t-tint-2); border-radius: 8px; padding: 0.5rem 0.75rem; display: block; }
+  .quick-popup .resource-link:hover { background: var(--t-tint-2); text-decoration: none; }
+  .quick-popup-foot { background: var(--t-tint); border-top: 1px solid var(--t-tint-2); }
+  .quick-popup-foot .btn { border-color: var(--t-accent); color: var(--t-accent-dark); background: #fff; }
+  .quick-popup-foot .btn:hover { background: var(--t-tint-2); }
+}

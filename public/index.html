@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>Teacher AI - Secure Differentiated Lesson Plan Assistant</title>
-  <meta name="description" content="Teacher AI is an intelligent lesson-plan assistant for educators that instantly generates tailored explanations and custom exercises for Foundation, Core, and Advanced students.">
+  <meta name="description" content="Teacher AI is an intelligent lesson-plan assistant for educators that instantly generates tailored explanations and custom exercises for Basic and Advanced students.">
   <meta property="og:title" content="Teacher AI - Secure Differentiated Lesson Plan Assistant">
-  <meta property="og:description" content="AI lesson-plan assistant for teachers that generates tailored explanations and 5+ custom exercises for Foundation, Core, and Advanced student levels in seconds.">
+  <meta property="og:description" content="AI lesson-plan assistant for teachers that generates tailored explanations and 5+ custom exercises for Basic and Advanced student levels in seconds.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="/example-output.png">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -65,7 +65,7 @@
             <h2>TEACHER <span>AI</span></h2>
             <p>AI-Powered Differentiated Lesson Plan Assistant</p>
             <p style="font-size: 1rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.5;">
-              Generate tailored explanations and 5+ custom exercises for <strong>Foundation</strong>, <strong>Core</strong>, and <strong>Advanced</strong> student levels in seconds.
+              Generate tailored explanations and 5+ custom exercises for <strong>Basic</strong> and <strong>Advanced</strong> student levels in seconds.
             </p>
           </div>
 
@@ -107,8 +107,8 @@
             <div class="benefit-icon benefit-icon-foundation">
               <i class="fa-solid fa-layer-group"></i>
             </div>
-            <h4>3-Tier Differentiation</h4>
-            <p>Generates tailored explanations and 5+ structured practice exercises calibrated for Foundation, Core, and Advanced student levels in seconds.</p>
+            <h4>2-Level Differentiation</h4>
+            <p>Generates tailored explanations and 5+ structured practice exercises calibrated for Basic and Advanced student levels in seconds.</p>
           </div>
 
           <!-- Benefit 2 -->
@@ -375,7 +375,7 @@
                 <div class="period-extras" id="periodExtras"></div>
               </div>
 
-              <!-- FOUNDATION CARD -->
+              <!-- BASIC CARD -->
               <div class="level-card foundation-card weak-card" id="weakCard">
                 <div class="card-header">
                   <span class="level-pill red">Basic</span>
@@ -391,7 +391,7 @@
                 </div>
               </div>
 
-              <!-- CORE CARD -->
+              <!-- ADVANCED CARD -->
               <div class="level-card core-card medium-card" id="mediumCard">
                 <div class="card-header">
                   <span class="level-pill yellow">Advanced</span>
@@ -426,19 +426,19 @@
             </div>
 
             <div class="chat-input-wrapper">
-              <textarea id="followUpInput" placeholder="Change something... e.g. make Foundation easier" rows="1" aria-label="Change something in this plan"></textarea>
+              <textarea id="followUpInput" placeholder="Change something... e.g. make Basic easier" rows="1" aria-label="Change something in this plan"></textarea>
               <button class="btn btn-accent send-msg-btn touch-target" id="sendFollowUpBtn" title="Send" aria-label="Send">
                 <i class="fa-solid fa-arrow-right"></i>
               </button>
             </div>
 
             <div class="suggestion-chips">
-              <button class="chat-chip touch-target" data-action="pop-quiz" title="10 mixed questions, printable">Printable Pop Quiz</button>
-              <button class="chat-chip touch-target" data-action="mcqs" title="10 multiple choice questions">MCQs</button>
-              <button class="chat-chip touch-target" data-action="real-life" title="5 child-friendly real-life examples">Real-Life Examples</button>
-              <button class="chat-chip touch-target" data-action="mini-research" title="1 take-home exploration task">Mini Research Task</button>
-              <button class="chat-chip touch-target" data-action="resources" title="Google, Pinterest and YouTube links">Related Resources</button>
-              <button class="chat-chip touch-target" data-action="challenge" title="3 open-ended questions with model answers">Challenge Question</button>
+              <button class="chat-chip chip-quiz touch-target" data-action="pop-quiz" title="10 mixed questions, printable"><span class="emoji" aria-hidden="true">📝</span> Printable Pop Quiz</button>
+              <button class="chat-chip chip-mcq touch-target" data-action="mcqs" title="10 multiple choice questions"><span class="emoji" aria-hidden="true">✅</span> MCQs</button>
+              <button class="chat-chip chip-real touch-target" data-action="real-life" title="5 child-friendly real-life examples"><span class="emoji" aria-hidden="true">🌍</span> Real-Life Examples</button>
+              <button class="chat-chip chip-research touch-target" data-action="mini-research" title="1 take-home exploration task"><span class="emoji" aria-hidden="true">🔎</span> Mini Research Task</button>
+              <button class="chat-chip chip-resources touch-target" data-action="resources" title="Google, Pinterest and YouTube links"><span class="emoji" aria-hidden="true">🔗</span> Related Resources</button>
+              <button class="chat-chip chip-challenge touch-target" data-action="challenge" title="3 open-ended questions with model answers"><span class="emoji" aria-hidden="true">🏆</span> Challenge Question</button>
             </div>
           </div>
 
@@ -486,6 +486,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- App Script as Module for Firebase ES Imports -->
-  <script type="module" src="app.js?v=14"></script>
+  <script type="module" src="app.js?v=18"></script>
 </body>
 </html>

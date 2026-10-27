@@ -813,13 +813,13 @@ Number the questions in each section as a list starting again from 1. Do NOT put
         } else if (target === 'core' || target === 'intermediate' || target === 'medium') {
           contentText = `ADVANCED:\nHow to explain: ${core.howToExplain || ''}\n\nExercises:\n` + (core.exercises || []).join('\n');
         } else if (target === 'engagement') {
-          contentText = `ENGAGEMENT TIPS:\n${engagementLines(data).map((t, i) => `${i + 1}. ${t}`).join('\n')}`;
+          contentText = `${tipsLabel(data).toUpperCase()}:\n${engagementLines(data).map((t, i) => `${i + 1}. ${t}`).join('\n')}`;
         }
 
         copyToClipboard(contentText);
         const displayLabel = (target === 'foundation' || target === 'beginner' || target === 'weak') ? 'BASIC'
           : (target === 'core' || target === 'intermediate' || target === 'medium') ? 'ADVANCED'
-          : target === 'engagement' ? 'ENGAGEMENT TIPS'
+          : target === 'engagement' ? tipsLabel(getActiveThread().initialResponse).toUpperCase()
           : target.toUpperCase();
         showToast(`Copied ${displayLabel} section to clipboard!`);
       });
@@ -1056,6 +1056,11 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     return [35, 40, 45].includes(value) ? value : 40;
   }
 
+  // Plans saved earlier only have the old 'teachingTips' text, so they keep that name
+  function tipsLabel(data) {
+    return (Array.isArray(data.engagementTips) && data.engagementTips.length) ? 'Engagement Tips' : 'Teaching Tips';
+  }
+
   // Engagement tips as a list; plans saved earlier only have the old 'teachingTips' text
   function engagementLines(data) {
     if (Array.isArray(data.engagementTips) && data.engagementTips.length) return data.engagementTips;
@@ -1103,10 +1108,10 @@ Number the questions in each section as a list starting again from 1. Do NOT put
       cursor += Number(mins) || 0;
       return `${from}–${cursor} min`;
     };
-    const row = (time, title, body) => `
-      <div class="period-row">
+    const row = (time, title, body, cls, emoji) => `
+      <div class="period-row ${cls}">
         <div class="period-time">${esc(time)}</div>
-        <div class="period-body"><h3>${esc(title)}</h3>${body}</div>
+        <div class="period-body"><h3><span class="emoji" aria-hidden="true">${emoji}</span> ${esc(title)}</h3>${body}</div>
       </div>`;
 
     const gw = plan.groupWork || {};
@@ -1114,26 +1119,26 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     const ticket = (plan.check && plan.check.exitTicket) || [];
 
     timeline.innerHTML = [
-      row(range(t.hook), 'Hook', `<p>${esc(plan.hook)}</p>`),
+      row(range(t.hook), 'Hook', `<p>${esc(plan.hook)}</p>`, 'sec-hook', '💡'),
       row(range(t.explain), 'Explain', `
         <p>${esc(plan.explain && plan.explain.steps)}</p>
-        ${board.length ? `<div class="board-box"><span class="board-label">Write on the board</span>${board.map(l => `<div>${esc(l)}</div>`).join('')}</div>` : ''}`),
+        ${board.length ? `<div class="board-box"><span class="board-label">Write on the board</span>${board.map(l => `<div>${esc(l)}</div>`).join('')}</div>` : ''}`, 'sec-explain', '📖'),
       row(range(t.groupWork), 'Group work: both groups at the same time', `
         <div class="group-grid">
           <div class="group-box foundation"><strong>Basic</strong><p>${esc(gw.foundation)}</p></div>
           <div class="group-box core"><strong>Advanced</strong><p>${esc(gw.core)}</p></div>
         </div>
-        ${gw.finishedEarly ? `<p class="finished-early">Finished early? ${esc(gw.finishedEarly)}</p>` : ''}`),
+        ${gw.finishedEarly ? `<p class="finished-early">Finished early? ${esc(gw.finishedEarly)}</p>` : ''}`, 'sec-group', '👥'),
       row(range(t.check), 'Check', ticket.length
-        ? `<p>Exit ticket: 3 quick questions.</p><ol class="ticket-list">${ticket.map(q => `<li>${esc(q)}</li>`).join('')}</ol>`
-        : '<p>Exit ticket: 3 quick questions.</p>'),
-      row(range(t.homework), 'Homework', `<p>${esc(plan.homework)}</p>`)
+        ? `<p>Exit ticket: 3 quick questions.</p><ol class="ticket-list">${ticket.map(q => `<li>${esc(String(q).replace(/^\s*\d+[.)]\s*/, ''))}</li>`).join('')}</ol>`
+        : '<p>Exit ticket: 3 quick questions.</p>', 'sec-check', '✅'),
+      row(range(t.homework), 'Homework', `<p>${esc(plan.homework)}</p>`, 'sec-homework', '🏠')
     ].join('');
 
-    const card = (title, body) => `<div class="extra-card"><h3>${esc(title)}</h3>${body}</div>`;
+    const card = (title, body, cls = '', emoji = '') => `<div class="extra-card ${cls}"><h3>${emoji ? `<span class="emoji" aria-hidden="true">${emoji}</span> ` : ''}${esc(title)}</h3>${body}</div>`;
     const materials = plan.materials || [];
     extras.innerHTML = [
-      plan.steam && plan.steam.activity ? card('STEAM activity', `<p>${esc(plan.steam.activity)}</p>`) : '',
+      plan.steam && plan.steam.activity ? card('STEAM activity', `<p>${esc(plan.steam.activity)}</p>`, 'sec-steam', '🔬') : '',
       plan.classManagement ? card('Class management', `<p>${esc(plan.classManagement)}</p>`) : '',
       materials.length ? card('You will need', `<p>${materials.map(esc).join(', ')}</p>`) : ''
     ].join('');
@@ -1210,6 +1215,10 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     mediumHowToExplain.textContent = core.howToExplain || 'No explanation available.';
     renderExerciseList(mediumExercises, core.exercises || []);
 
+    const tipsName = tipsLabel(data);
+    document.querySelector('.level-tab-btn.engagement-tab').textContent = tipsName;
+    document.querySelector('#engagementCard .level-pill').textContent = tipsName;
+    document.querySelector('.engagement-intro').style.display = tipsName === 'Engagement Tips' ? '' : 'none';
     engagementList.innerHTML = '';
     const tips = engagementLines(data);
     if (!tips.length) tips.push('No engagement tips for this plan.');
@@ -1384,19 +1393,19 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     // 0. Period Plan (minute by minute)
     fullText += buildPeriodPlanText(data.periodPlan);
 
-    // 1. Foundation
+    // 1. Basic
     const foundation = data.foundation || data.beginner || data.weak || {};
     fullText += `--- 1. BASIC ---\nHow to Explain: ${foundation.howToExplain || ''}\nExercises:\n`;
     (foundation.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
-    // 2. Core
+    // 2. Advanced
     const core = data.core || data.intermediate || data.medium || {};
     fullText += `\n--- 2. ADVANCED ---\nHow to Explain: ${core.howToExplain || ''}\nExercises:\n`;
     (core.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
     // 3. Engagement tips
     if (engagementLines(data).length) {
-      fullText += `\n--- ENGAGEMENT TIPS ---\n${engagementLines(data).map((t, i) => ` ${i+1}. ${t}`).join('\n')}\n`;
+      fullText += `\n--- ${tipsLabel(data).toUpperCase()} ---\n${engagementLines(data).map((t, i) => ` ${i+1}. ${t}`).join('\n')}\n`;
     }
 
     // 5. Follow-ups & Generated Quick Actions (Pop Quiz, MCQs, Real-life examples, Research task, Challenge questions, etc.)
