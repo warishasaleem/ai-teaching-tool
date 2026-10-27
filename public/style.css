@@ -2453,6 +2453,175 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, a {
 }
 
 /* ==========================================================================
+   PERIOD PLAN TAB (Task 3)
+   ========================================================================== */
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.field-col { min-width: 0; }
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: #eceef2;
+  border-radius: 0.75rem;
+}
+.segmented-option { cursor: pointer; }
+.segmented-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.segmented-option span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.segmented-option input:checked + span {
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+.segmented-option input:focus-visible + span { outline: 3px solid rgba(79, 70, 229, 0.3); }
+
+.steam-chip {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--accent-primary);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.period-meta-mobile { display: none; }
+
+.period-card {
+  padding: 0;
+  border-top: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.period-row {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.period-row:last-child { border-bottom: none; }
+
+.period-time {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.period-body h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.375rem;
+}
+.period-body p { font-size: 1rem; line-height: 1.6; color: var(--text-main); }
+
+.board-box {
+  margin-top: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: var(--bg-input);
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+.board-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.group-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.group-box {
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+}
+.group-box strong { display: block; margin-bottom: 0.25rem; font-size: 1rem; }
+.group-box p { font-size: 1rem; line-height: 1.5; }
+.group-box.foundation { background: var(--color-foundation-bg); }
+.group-box.foundation strong { color: var(--color-foundation); }
+.group-box.core { background: var(--color-core-bg); }
+.group-box.core strong { color: var(--color-core); }
+.group-box.advanced { background: var(--color-advanced-bg); }
+.group-box.advanced strong { color: var(--color-advanced); }
+
+.finished-early { margin-top: 0.75rem; color: var(--text-muted) !important; }
+
+.ticket-list { margin: 0.5rem 0 0 1.25rem; font-size: 1rem; line-height: 1.6; }
+
+.period-extras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+  background: var(--bg-dark);
+  border-top: 1px solid var(--border-color);
+}
+.period-extras:empty { display: none; }
+.extra-card {
+  padding: 1rem 1.25rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.875rem;
+}
+.extra-card h3 { margin-bottom: 0.375rem; font-size: 1.0625rem; font-weight: 700; }
+.extra-card p { font-size: 1rem; line-height: 1.6; }
+
+@media (max-width: 768px) {
+  .field-row { grid-template-columns: 1fr; gap: 0; }
+  .steam-chip { display: none; }
+  .period-meta-mobile {
+    display: block;
+    padding: 1rem 1.125rem 0;
+    font-size: 1rem;
+    color: var(--text-muted);
+  }
+  .period-meta-mobile strong { color: var(--accent-primary); }
+
+  .period-card { border: none; background: none; overflow: visible; }
+  .period-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+    margin: 0.75rem 0;
+    padding: 1rem 1.125rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+  }
+  .period-row:last-child { border-bottom: 1px solid var(--border-color); }
+  .group-grid { grid-template-columns: 1fr; }
+  .period-extras { padding: 0; background: none; border: none; }
+}
+
+/* ==========================================================================
    PRINT STYLES - MULTI-PAGE PRINTING WITH DEDICATED SECTION PAGE BREAKS
    ========================================================================== */
 @media print {

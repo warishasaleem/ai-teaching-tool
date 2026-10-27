@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body class="dark-theme">
 
@@ -263,7 +263,7 @@
       <section class="hero-section" id="heroView">
         <div class="newtopic-card">
           <h1>What are you teaching today?</h1>
-          <p class="newtopic-subtitle">One topic gives you explanations and practice for 3 levels: Foundation, Core and Advanced.</p>
+          <p class="newtopic-subtitle">One topic gives you a full period: explain, group work for 3 levels, and a quick check.</p>
 
           <!-- LIMIT REACHED NOTIFICATION (Shown when 0 free plans left) -->
           <div class="limit-reached-card" id="limitReachedCard" style="display: none;">
@@ -288,6 +288,8 @@
             <label class="field-label" for="topicInput">Topic</label>
             <input type="text" id="topicInput" class="field-input" placeholder="e.g. Fractions" autocomplete="off">
 
+            <div class="field-row">
+            <div class="field-col">
             <label class="field-label" for="classSelect">Class</label>
             <select id="classSelect" class="field-input field-select">
               <option value="1">Class 1</option>
@@ -305,8 +307,19 @@
               <option value="O Level">O Level</option>
               <option value="A Level">A Level</option>
             </select>
+            </div>
 
-            <button class="btn btn-accent generate-btn touch-target" id="generateBtn">Make my plan</button>
+            <div class="field-col">
+              <span class="field-label" id="periodLengthLabel">Period length</span>
+              <div class="segmented" role="radiogroup" aria-labelledby="periodLengthLabel">
+                <label class="segmented-option"><input type="radio" name="periodLength" value="35"><span>35 min</span></label>
+                <label class="segmented-option"><input type="radio" name="periodLength" value="40" checked><span>40 min</span></label>
+                <label class="segmented-option"><input type="radio" name="periodLength" value="45"><span>45 min</span></label>
+              </div>
+            </div>
+            </div>
+
+            <button class="btn btn-accent generate-btn touch-target" id="generateBtn">Make my period plan</button>
           </div>
 
           <!-- SAMPLE TOPICS -->
@@ -327,13 +340,17 @@
             <!-- 1. TOPIC HEADING -->
             <div class="plan-heading">
               <h1 id="activeTopicTitle">Photosynthesis</h1>
-              <p class="plan-class-label" id="activeTopicClass" style="display: none;"></p>
+              <p class="plan-class-label">
+                <span id="activeTopicClass"></span>
+                <span class="steam-chip" id="planSteamChip" style="display: none;"></span>
+              </p>
             </div>
 
             <!-- 2. PLAN TOOLBAR: Level tabs (left) + Copy / Print (right) -->
             <div class="plan-toolbar" id="planToolbar">
               <div class="level-tabs-header" id="levelTabsHeader" role="tablist">
-                <button class="level-tab-btn foundation-tab active touch-target" data-level="foundation" role="tab">Foundation</button>
+                <button class="level-tab-btn period-tab active touch-target" data-level="period" role="tab" id="periodTabBtn">Period Plan</button>
+                <button class="level-tab-btn foundation-tab touch-target" data-level="foundation" role="tab">Foundation</button>
                 <button class="level-tab-btn core-tab touch-target" data-level="core" role="tab">Core</button>
                 <button class="level-tab-btn advanced-tab touch-target" data-level="advanced" role="tab">Advanced</button>
               </div>
@@ -351,8 +368,15 @@
             <!-- LEVEL CONTENT -->
             <div class="level-cards-container tabbed-mode" id="levelCardsContainer">
 
+              <!-- PERIOD PLAN (minute-by-minute) -->
+              <div class="level-card period-card active" id="periodCard">
+                <p class="period-meta-mobile" id="periodMetaMobile"></p>
+                <div class="period-timeline" id="periodTimeline"></div>
+                <div class="period-extras" id="periodExtras"></div>
+              </div>
+
               <!-- FOUNDATION CARD -->
-              <div class="level-card foundation-card weak-card active" id="weakCard">
+              <div class="level-card foundation-card weak-card" id="weakCard">
                 <div class="card-header">
                   <span class="level-pill red">Foundation</span>
                   <button class="copy-sec-btn touch-target" data-target="foundation" title="Copy Foundation"><i class="fa-regular fa-copy"></i></button>
@@ -477,6 +501,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- App Script as Module for Firebase ES Imports -->
-  <script type="module" src="app.js?v=12"></script>
+  <script type="module" src="app.js?v=13"></script>
 </body>
 </html>

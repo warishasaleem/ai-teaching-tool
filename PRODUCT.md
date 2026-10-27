@@ -82,7 +82,7 @@ Two teachers, given no help, create their first plan within 1 minute.
 ## Checklist
 - [x] Task 1 loader push
 - [x] Task 2 minimal UI
-- [ ] Task 3 Period Plan
+- [x] Task 3 Period Plan
 - [ ] Task 4 SLO box
 - [ ] Task 5 licenses
 - [ ] Google login screen par app ka naam "Teacher AI" + Privacy/Terms links (Google Cloud OAuth consent screen)
