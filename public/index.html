@@ -350,9 +350,9 @@
             <div class="plan-toolbar" id="planToolbar">
               <div class="level-tabs-header" id="levelTabsHeader" role="tablist">
                 <button class="level-tab-btn period-tab active touch-target" data-level="period" role="tab" id="periodTabBtn">Period Plan</button>
-                <button class="level-tab-btn foundation-tab touch-target" data-level="foundation" role="tab">Foundation</button>
-                <button class="level-tab-btn core-tab touch-target" data-level="core" role="tab">Core</button>
-                <button class="level-tab-btn advanced-tab touch-target" data-level="advanced" role="tab">Advanced</button>
+                <button class="level-tab-btn foundation-tab touch-target" data-level="foundation" role="tab">Basic</button>
+                <button class="level-tab-btn core-tab touch-target" data-level="core" role="tab">Advanced</button>
+                <button class="level-tab-btn engagement-tab touch-target" data-level="engagement" role="tab">Engagement Tips</button>
               </div>
 
               <div class="plan-toolbar-actions">
@@ -378,8 +378,8 @@
               <!-- FOUNDATION CARD -->
               <div class="level-card foundation-card weak-card" id="weakCard">
                 <div class="card-header">
-                  <span class="level-pill red">Foundation</span>
-                  <button class="copy-sec-btn touch-target" data-target="foundation" title="Copy Foundation"><i class="fa-regular fa-copy"></i></button>
+                  <span class="level-pill red">Basic</span>
+                  <button class="copy-sec-btn touch-target" data-target="foundation" title="Copy Basic"><i class="fa-regular fa-copy"></i></button>
                 </div>
                 <div class="explain-box">
                   <h4>How to explain</h4>
@@ -394,8 +394,8 @@
               <!-- CORE CARD -->
               <div class="level-card core-card medium-card" id="mediumCard">
                 <div class="card-header">
-                  <span class="level-pill yellow">Core</span>
-                  <button class="copy-sec-btn touch-target" data-target="core" title="Copy Core"><i class="fa-regular fa-copy"></i></button>
+                  <span class="level-pill yellow">Advanced</span>
+                  <button class="copy-sec-btn touch-target" data-target="core" title="Copy Advanced"><i class="fa-regular fa-copy"></i></button>
                 </div>
                 <div class="explain-box">
                   <h4>How to explain</h4>
@@ -407,30 +407,15 @@
                 </div>
               </div>
 
-              <!-- ADVANCED CARD -->
-              <div class="level-card advanced-card intelligent-card" id="intelligentCard">
+              <!-- ENGAGEMENT TIPS CARD -->
+              <div class="level-card engagement-card" id="engagementCard">
                 <div class="card-header">
-                  <span class="level-pill green">Advanced</span>
-                  <button class="copy-sec-btn touch-target" data-target="advanced" title="Copy Advanced"><i class="fa-regular fa-copy"></i></button>
+                  <span class="level-pill green">Engagement Tips</span>
+                  <button class="copy-sec-btn touch-target" data-target="engagement" title="Copy Engagement Tips"><i class="fa-regular fa-copy"></i></button>
                 </div>
-                <div class="explain-box">
-                  <h4>How to explain</h4>
-                  <p id="intelligentHowToExplain">Loading explanation...</p>
-                </div>
-                <div class="exercises-box">
-                  <h4>Exercises</h4>
-                  <div class="exercises-list" id="intelligentExercises"></div>
-                </div>
+                <p class="engagement-intro">Use these the moment students' attention drifts.</p>
+                <ol class="engagement-list" id="engagementList"></ol>
               </div>
-            </div>
-
-            <!-- 3. HOW TO TEACH THIS TOPIC (GENERAL STRATEGY) -->
-            <div class="strategy-card">
-              <div class="strategy-header">
-                <h3>How to teach this topic</h3>
-                <button class="copy-sec-btn touch-target" data-target="strategy" title="Copy strategy"><i class="fa-regular fa-copy"></i></button>
-              </div>
-              <p id="teachingTipsText">Loading general teaching tips...</p>
             </div>
           </div>
 
@@ -501,6 +486,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- App Script as Module for Firebase ES Imports -->
-  <script type="module" src="app.js?v=13"></script>
+  <script type="module" src="app.js?v=14"></script>
 </body>
 </html>

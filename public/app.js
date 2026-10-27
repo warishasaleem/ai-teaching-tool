@@ -82,14 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const planSteamChip = document.getElementById('planSteamChip');
   const weakCard = document.getElementById('weakCard');
   const mediumCard = document.getElementById('mediumCard');
-  const intelligentCard = document.getElementById('intelligentCard');
+  const engagementCard = document.getElementById('engagementCard');
   const weakHowToExplain = document.getElementById('weakHowToExplain');
   const mediumHowToExplain = document.getElementById('mediumHowToExplain');
-  const intelligentHowToExplain = document.getElementById('intelligentHowToExplain');
   const weakExercises = document.getElementById('weakExercises');
   const mediumExercises = document.getElementById('mediumExercises');
-  const intelligentExercises = document.getElementById('intelligentExercises');
-  const teachingTipsText = document.getElementById('teachingTipsText');
+  const engagementList = document.getElementById('engagementList');
 
   // DOM Elements - Chat Thread
   const chatMessagesList = document.getElementById('chatMessagesList');
@@ -809,22 +807,19 @@ Number the questions in each section as a list starting again from 1. Do NOT put
         const data = thread.initialResponse;
         const foundation = data.foundation || data.beginner || data.weak || {};
         const core = data.core || data.intermediate || data.medium || {};
-        const advanced = data.advanced || data.intelligent || {};
 
         if (target === 'foundation' || target === 'beginner' || target === 'weak') {
-          contentText = `FOUNDATION:\nHow to explain: ${foundation.howToExplain || ''}\n\nExercises:\n` + (foundation.exercises || []).join('\n');
+          contentText = `BASIC:\nHow to explain: ${foundation.howToExplain || ''}\n\nExercises:\n` + (foundation.exercises || []).join('\n');
         } else if (target === 'core' || target === 'intermediate' || target === 'medium') {
-          contentText = `CORE:\nHow to explain: ${core.howToExplain || ''}\n\nExercises:\n` + (core.exercises || []).join('\n');
-        } else if (target === 'advanced' || target === 'intelligent') {
-          contentText = `ADVANCED:\nHow to explain: ${advanced.howToExplain || ''}\n\nExercises:\n` + (advanced.exercises || []).join('\n');
-        } else if (target === 'strategy') {
-          contentText = `HOW TO TEACH THIS TOPIC (GENERAL STRATEGY):\n${data.teachingTips || ''}`;
+          contentText = `ADVANCED:\nHow to explain: ${core.howToExplain || ''}\n\nExercises:\n` + (core.exercises || []).join('\n');
+        } else if (target === 'engagement') {
+          contentText = `ENGAGEMENT TIPS:\n${engagementLines(data).map((t, i) => `${i + 1}. ${t}`).join('\n')}`;
         }
 
         copyToClipboard(contentText);
-        const displayLabel = (target === 'foundation' || target === 'beginner' || target === 'weak') ? 'FOUNDATION'
-          : (target === 'core' || target === 'intermediate' || target === 'medium') ? 'CORE'
-          : (target === 'advanced' || target === 'intelligent') ? 'ADVANCED'
+        const displayLabel = (target === 'foundation' || target === 'beginner' || target === 'weak') ? 'BASIC'
+          : (target === 'core' || target === 'intermediate' || target === 'medium') ? 'ADVANCED'
+          : target === 'engagement' ? 'ENGAGEMENT TIPS'
           : target.toUpperCase();
         showToast(`Copied ${displayLabel} section to clipboard!`);
       });
@@ -866,7 +861,7 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     }
 
     const periodLength = getSelectedPeriodLength();
-    showLoading('Making your period plan...', `A ${periodLength}-minute plan with group work for Foundation, Core and Advanced.`);
+    showLoading('Making your period plan...', `A ${periodLength}-minute plan with group work for Basic and Advanced groups.`);
 
     try {
       const response = await fetch('/api/generate', {
@@ -1061,9 +1056,15 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     return [35, 40, 45].includes(value) ? value : 40;
   }
 
-  // Shows one tab (period / foundation / core / advanced) and its card
+  // Engagement tips as a list; plans saved earlier only have the old 'teachingTips' text
+  function engagementLines(data) {
+    if (Array.isArray(data.engagementTips) && data.engagementTips.length) return data.engagementTips;
+    return data.teachingTips ? [data.teachingTips] : [];
+  }
+
+  // Shows one tab (period / foundation / core / engagement) and its card
   function showLevelTab(level) {
-    const cards = { period: periodCard, foundation: weakCard, core: mediumCard, advanced: intelligentCard };
+    const cards = { period: periodCard, foundation: weakCard, core: mediumCard, engagement: engagementCard };
     levelTabBtns.forEach(b => b.classList.toggle('active', b.getAttribute('data-level') === level));
     Object.values(cards).forEach(card => card && card.classList.remove('active'));
     if (cards[level]) cards[level].classList.add('active');
@@ -1117,11 +1118,10 @@ Number the questions in each section as a list starting again from 1. Do NOT put
       row(range(t.explain), 'Explain', `
         <p>${esc(plan.explain && plan.explain.steps)}</p>
         ${board.length ? `<div class="board-box"><span class="board-label">Write on the board</span>${board.map(l => `<div>${esc(l)}</div>`).join('')}</div>` : ''}`),
-      row(range(t.groupWork), 'Group work: all three groups at the same time', `
+      row(range(t.groupWork), 'Group work: both groups at the same time', `
         <div class="group-grid">
-          <div class="group-box foundation"><strong>Foundation</strong><p>${esc(gw.foundation)}</p></div>
-          <div class="group-box core"><strong>Core</strong><p>${esc(gw.core)}</p></div>
-          <div class="group-box advanced"><strong>Advanced</strong><p>${esc(gw.advanced)}</p></div>
+          <div class="group-box foundation"><strong>Basic</strong><p>${esc(gw.foundation)}</p></div>
+          <div class="group-box core"><strong>Advanced</strong><p>${esc(gw.core)}</p></div>
         </div>
         ${gw.finishedEarly ? `<p class="finished-early">Finished early? ${esc(gw.finishedEarly)}</p>` : ''}`),
       row(range(t.check), 'Check', ticket.length
@@ -1156,9 +1156,8 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     lines.push(`${range(t.explain)} EXPLAIN: ${plan.explain.steps}`);
     if (plan.explain.board.length) lines.push(`  Write on the board:\n${plan.explain.board.map(l => `   - ${l}`).join('\n')}`);
     lines.push(`${range(t.groupWork)} GROUP WORK (all groups at the same time):`);
-    lines.push(`  Foundation: ${gw.foundation}`);
-    lines.push(`  Core: ${gw.core}`);
-    lines.push(`  Advanced: ${gw.advanced}`);
+    lines.push(`  Basic: ${gw.foundation}`);
+    lines.push(`  Advanced: ${gw.core}`);
     if (gw.finishedEarly) lines.push(`  Finished early: ${gw.finishedEarly}`);
     lines.push(`${range(t.check)} CHECK (exit ticket):`);
     plan.check.exitTicket.forEach((q, i) => lines.push(`  ${i + 1}. ${q}`));
@@ -1204,7 +1203,6 @@ Number the questions in each section as a list starting again from 1. Do NOT put
 
     const foundation = data.foundation || data.beginner || data.weak || {};
     const core = data.core || data.intermediate || data.medium || {};
-    const advanced = data.advanced || data.intelligent || {};
 
     weakHowToExplain.textContent = foundation.howToExplain || 'No explanation available.';
     renderExerciseList(weakExercises, foundation.exercises || []);
@@ -1212,10 +1210,10 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     mediumHowToExplain.textContent = core.howToExplain || 'No explanation available.';
     renderExerciseList(mediumExercises, core.exercises || []);
 
-    intelligentHowToExplain.textContent = advanced.howToExplain || 'No explanation available.';
-    renderExerciseList(intelligentExercises, advanced.exercises || []);
-
-    teachingTipsText.textContent = data.teachingTips || 'No general strategy tips provided.';
+    engagementList.innerHTML = '';
+    const tips = engagementLines(data);
+    if (!tips.length) tips.push('No engagement tips for this plan.');
+    tips.forEach(t => { const li = document.createElement('li'); li.textContent = t; engagementList.appendChild(li); });
 
     chatMessagesList.innerHTML = '';
     if (Array.isArray(thread.messages) && thread.messages.length > 0) {
@@ -1388,22 +1386,17 @@ Number the questions in each section as a list starting again from 1. Do NOT put
 
     // 1. Foundation
     const foundation = data.foundation || data.beginner || data.weak || {};
-    fullText += `--- 1. FOUNDATION ---\nHow to Explain: ${foundation.howToExplain || ''}\nExercises:\n`;
+    fullText += `--- 1. BASIC ---\nHow to Explain: ${foundation.howToExplain || ''}\nExercises:\n`;
     (foundation.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
     // 2. Core
     const core = data.core || data.intermediate || data.medium || {};
-    fullText += `\n--- 2. CORE ---\nHow to Explain: ${core.howToExplain || ''}\nExercises:\n`;
+    fullText += `\n--- 2. ADVANCED ---\nHow to Explain: ${core.howToExplain || ''}\nExercises:\n`;
     (core.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
 
-    // 3. Advanced
-    const advanced = data.advanced || data.intelligent || {};
-    fullText += `\n--- 3. ADVANCED ---\nHow to Explain: ${advanced.howToExplain || ''}\nExercises:\n`;
-    (advanced.exercises || []).forEach((ex, i) => fullText += ` ${i+1}. ${ex}\n`);
-
-    // 4. Teaching Strategy
-    if (data.teachingTips) {
-      fullText += `\n--- HOW TO TEACH THIS TOPIC (GENERAL STRATEGY) ---\n${data.teachingTips}\n`;
+    // 3. Engagement tips
+    if (engagementLines(data).length) {
+      fullText += `\n--- ENGAGEMENT TIPS ---\n${engagementLines(data).map((t, i) => ` ${i+1}. ${t}`).join('\n')}\n`;
     }
 
     // 5. Follow-ups & Generated Quick Actions (Pop Quiz, MCQs, Real-life examples, Research task, Challenge questions, etc.)

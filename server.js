@@ -415,7 +415,6 @@ function normalizePeriodPlan(raw, periodLength) {
     groupWork: {
       foundation: text(groupWork.foundation),
       core: text(groupWork.core),
-      advanced: text(groupWork.advanced),
       finishedEarly: text(groupWork.finishedEarly)
     },
     check: { exitTicket: list(check.exitTicket) },
@@ -639,17 +638,16 @@ app.post('/api/generate', async (req, res) => {
 
     const foundationData = fallbackCategory(['foundation', 'beginner', 'weak']);
     const coreData = fallbackCategory(['core', 'intermediate', 'medium']);
-    const advancedData = fallbackCategory(['advanced', 'intelligent']);
 
     responseJSON = {
       greeting: responseJSON.greeting || `Here is your differentiated lesson plan for "${topic.trim()}".`,
       periodPlan: normalizePeriodPlan(responseJSON.periodPlan, periodLength),
       foundation: foundationData,
       core: coreData,
-      advanced: advancedData,
       beginner: foundationData,            // Backward compatibility alias
       intermediate: coreData,              // Backward compatibility alias
-      teachingTips: responseJSON.teachingTips || responseJSON.tips || ''
+      engagementTips: (Array.isArray(responseJSON.engagementTips) ? responseJSON.engagementTips : [])
+        .map(t => String(t).trim()).filter(Boolean).slice(0, 5)
     };
 
     return res.json({
