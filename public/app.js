@@ -196,33 +196,225 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- QUICK ACTION PROMPTS FOR 6 FOLLOW-UP BUTTONS ---
-  function getQuickActionPrompt(action, topic, thread) {
-    const cleanTopic = topic || 'this topic';
-    switch (action) {
-      case 'pop-quiz':
-        return `Generate a 10-question Printable Pop Quiz on the topic "${cleanTopic}". Include a balanced mix of True/False, Fill in the Blanks, and One-word Question & Answer types. Format clearly with question numbers and type labels (e.g., [True/False], [Fill in the Blank], [One-Word Q&A]), laid out cleanly so it can be printed directly for classroom use. Include a complete Answer Key at the end.`;
+  // --- QUICK ACTION POPUP (6 BUTTONS, SAME POPUP) ---
+  // Do not remove any of these 6 without asking (see PRODUCT.md).
+  const ANSWERS_MARKER = '===ANSWERS===';
+  const NO_TABLES_RULE = 'Never use a table. Use only headings and lists.';
+  const NO_BOLD_RULE = 'Do NOT use bold, italics or any emphasis anywhere in the questions or options, so the correct answer cannot be guessed from formatting.';
+  const ANSWERS_RULE = `${NO_BOLD_RULE} Do NOT put answers next to the questions. After the very last question, write a line containing only ${ANSWERS_MARKER} and then the complete answer key (same numbers, one short line each).`;
 
-      case 'mcqs':
-        return `Generate 10 Multiple-Choice Questions (MCQs) on the topic "${cleanTopic}". Each question must have exactly 4 options labeled A, B, C, and D. Number all questions clearly and list the correct answers separately at the end in an Answer Key.`;
-
-      case 'answer-key': {
-        // The follow-up API only receives the explanations, so list the exercises here
-        const data = (thread && thread.initialResponse) || {};
-        const levels = [
-          ['Foundation', data.foundation || data.beginner || data.weak || {}],
-          ['Core', data.core || data.intermediate || data.medium || {}],
-          ['Advanced', data.advanced || data.intelligent || {}]
+  const QUICK_ACTIONS = {
+    'pop-quiz': {
+      title: 'Printable Pop Quiz',
+      hasAnswers: true,
+      stripBold: true,
+      prompt: (t) => `Generate a Printable Pop Quiz of 15 questions on the topic "${t}", laid out cleanly so it can be printed for classroom use. Use exactly these three sections, each with its heading on its own line, in this order:
+## True / False
+(5 statements)
+## Fill in the Blanks
+(5 sentences, each with one blank written as ______)
+## One-Word Answers
+(5 questions that have a one-word answer)
+Number the questions in each section as a list starting again from 1. Do NOT put a label like [True/False] before questions. For True / False, write only the statement, with NO options (no A/B, no "True"/"False" choices). ${ANSWERS_RULE} Put the answer key in the same three sections, in the same order, with the same headings and numbering.`
+    },
+    'mcqs': {
+      title: 'MCQs',
+      hasAnswers: true,
+      stripBold: true,
+      prompt: (t) => `Generate 10 Multiple-Choice Questions (MCQs) on the topic "${t}". Each question must have exactly 4 options labeled A, B, C, and D. Number all questions clearly. ${ANSWERS_RULE}`
+    },
+    'real-life': {
+      title: 'Real-Life Examples',
+      prompt: (t) => `Generate 5 simple real-life examples of "${t}". Write them in language appropriate for children, connecting the topic directly to everyday things, household items, or experiences kids recognize.`
+    },
+    'mini-research': {
+      title: 'Mini Research Task',
+      prompt: (t) => `Generate exactly ONE take-home mini research and exploration task related to "${t}" that students can easily do at home (e.g. observe something, ask a family member, or find an object). Include clear, simple step-by-step instructions on what to do and brief instructions on what to bring back or report to class.`
+    },
+    'resources': {
+      title: 'Related Resources',
+      links: (t) => {
+        const q = encodeURIComponent(t);
+        return [
+          ['Search Google for activities', `https://www.google.com/search?q=${q}+teaching+activities`],
+          ['Printable worksheets (Google)', `https://www.google.com/search?q=${q}+worksheets+printable`],
+          ['Pinterest teaching ideas', `https://www.pinterest.com/search/pins/?q=${q}+teaching+ideas`],
+          ['YouTube lesson explanations', `https://www.youtube.com/results?search_query=${q}+lesson+explanation`]
         ];
-        const exerciseText = levels.map(([label, level]) =>
-          `${label}:\n` + (level.exercises || []).map((ex, i) => `${i + 1}. ${String(ex).replace(/^\d+[\.\)]\s*/, '')}`).join('\n')
-        ).join('\n\n');
-        return `Write a complete Answer Key for these exercises on "${cleanTopic}". Keep the Foundation, Core and Advanced headings, number each answer to match its question, and add a one-line explanation for each answer.\n\n${exerciseText}`;
+      }
+    },
+    'challenge': {
+      title: 'Challenge Question',
+      hasAnswers: true,
+      prompt: (t) => `Generate exactly 3 challenging, open-ended questions about "${t}" that can spark a classroom debate. Write them as a simple numbered list (1, 2, 3), one under the other. Each list item must contain ONLY the question, written in bold, and nothing else. Then write a line containing only ${ANSWERS_MARKER} and after it, for each question (same numbers), give a comprehensive model answer and key discussion points as a short bullet list.`
+    }
+  };
+
+  let quickPopupRequestId = 0;
+  let quickPopupText = { body: '', answers: '' };
+
+  function isQuickPopupOpen() {
+    return document.getElementById('quickPopup').classList.contains('open');
+  }
+
+  function closeQuickPopup() {
+    quickPopupRequestId++; // ignore any reply still on its way
+    document.getElementById('quickPopup').classList.remove('open');
+  }
+
+  function setQuickAnswersShown(shown) {
+    const answersEl = document.getElementById('quickPopupAnswers');
+    const btn = document.getElementById('quickPopupShowAnswers');
+    answersEl.classList.toggle('is-shown', shown);
+    btn.textContent = shown ? 'Hide answers' : 'Show answers';
+  }
+
+  function renderQuickMarkdown(md) {
+    return (typeof marked !== 'undefined') ? marked.parse(md) : escapeHtml(md).replace(/\n/g, '<br>');
+  }
+
+  async function openQuickPopup(action) {
+    const cfg = QUICK_ACTIONS[action];
+    if (!cfg) return;
+
+    const thread = getActiveThread();
+    const topic = (thread && thread.topic) ? thread.topic : (topicInput.value.trim() || 'this topic');
+
+    const popup = document.getElementById('quickPopup');
+    const bodyEl = document.getElementById('quickPopupBody');
+    const answersEl = document.getElementById('quickPopupAnswers');
+    const showBtn = document.getElementById('quickPopupShowAnswers');
+    const copyBtn = document.getElementById('quickPopupCopy');
+    const printBtn = document.getElementById('quickPopupPrint');
+
+    document.getElementById('quickPopupTitle').textContent = cfg.title;
+    popup.dataset.action = action;
+    quickPopupText = { body: '', answers: '' };
+    answersEl.innerHTML = '';
+    setQuickAnswersShown(false);
+    showBtn.style.display = 'none';
+    popup.classList.add('open');
+
+    // Related Resources: plain links, no AI call
+    if (cfg.links) {
+      const links = cfg.links(topic);
+      bodyEl.innerHTML = `<p class="quick-popup-topic">Links for <strong>${escapeHtml(topic)}</strong></p><ul class="resources-list">` +
+        links.map(([label, url]) => `<li><a class="resource-link" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a></li>`).join('') +
+        '</ul>';
+      quickPopupText.body = links.map(([label, url]) => `${label}: ${url}`).join('\n');
+      copyBtn.disabled = false;
+      printBtn.disabled = false;
+      return;
+    }
+
+    if (!thread) {
+      popup.classList.remove('open');
+      showToast('Please create a lesson plan first', 'error');
+      return;
+    }
+
+    const token = await getAuthToken();
+    if (!token) {
+      popup.classList.remove('open');
+      showToast('Please sign in again', 'warning');
+      return;
+    }
+
+    const myRequest = ++quickPopupRequestId;
+    bodyEl.innerHTML = '<p class="quick-popup-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Generating...</p>';
+    copyBtn.disabled = true;
+    printBtn.disabled = true;
+
+    // Never stay on "Generating..." forever: give up after 60 seconds
+    const abortTimer = new AbortController();
+    const timeoutId = setTimeout(() => abortTimer.abort(), 60000);
+    try {
+      const response = await fetch('/api/followup', {
+        method: 'POST',
+        signal: abortTimer.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          topic: thread.topic,
+          initialResponse: thread.initialResponse,
+          history: [],
+          message: `${cfg.prompt(topic)} ${NO_TABLES_RULE}`
+        })
+      });
+      const result = await response.json();
+      if (myRequest !== quickPopupRequestId) return; // popup was closed or reopened
+
+      if (!result.success || !result.reply) {
+        if (response.status === 503) {
+          closeQuickPopup();
+          showToast('Service is busy right now. Please try again in a moment.', 'error');
+          return;
+        }
+        if (response.status === 401) {
+          closeQuickPopup();
+          showToast('Please sign in again', 'error');
+          showAuthModal();
+          return;
+        }
+        throw new Error(result.error || 'Failed to get a response.');
       }
 
-      default:
-        return '';
+      let bodyMd = result.reply;
+      let answersMd = '';
+      if (cfg.hasAnswers) {
+        const idx = bodyMd.indexOf(ANSWERS_MARKER);
+        if (idx !== -1) {
+          answersMd = bodyMd.slice(idx + ANSWERS_MARKER.length).trim();
+          bodyMd = bodyMd.slice(0, idx).trim();
+        }
+      }
+      // Quiz/MCQ questions: no bold (it can give the answer away). Only ** is removed;
+      // blanks (______) must stay, so underscores are escaped to stop markdown eating them.
+      let bodyHtmlMd = bodyMd;
+      if (cfg.stripBold) {
+        bodyMd = bodyMd.replace(/\*\*/g, '');
+        bodyHtmlMd = bodyMd.replace(/_{2,}/g, (m) => '\\_'.repeat(m.length));
+      }
+
+      quickPopupText = { body: bodyMd, answers: answersMd };
+      bodyEl.innerHTML = renderQuickMarkdown(bodyHtmlMd);
+      if (answersMd) {
+        answersEl.innerHTML = '<h3 class="quick-answers-heading">Answers</h3>' + renderQuickMarkdown(answersMd);
+        showBtn.style.display = '';
+      }
+      copyBtn.disabled = false;
+      printBtn.disabled = false;
+    } catch (err) {
+      if (myRequest !== quickPopupRequestId) return;
+      console.error('Quick action error:', err);
+      closeQuickPopup();
+      showToast(err.name === 'AbortError' ? 'This took too long. Please try again.' : (err.message || 'Failed to generate. Try again.'), 'error');
+    } finally {
+      clearTimeout(timeoutId);
     }
+  }
+
+  function setupQuickPopup() {
+    const popup = document.getElementById('quickPopup');
+    document.getElementById('quickPopupClose').addEventListener('click', closeQuickPopup);
+    popup.addEventListener('click', (e) => { if (e.target === popup) closeQuickPopup(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isQuickPopupOpen()) closeQuickPopup(); });
+
+    document.getElementById('quickPopupShowAnswers').addEventListener('click', () => {
+      setQuickAnswersShown(!document.getElementById('quickPopupAnswers').classList.contains('is-shown'));
+    });
+    document.getElementById('quickPopupCopy').addEventListener('click', () => {
+      const showing = document.getElementById('quickPopupAnswers').classList.contains('is-shown');
+      copyToClipboard(quickPopupText.body + (showing && quickPopupText.answers ? `\n\nAnswers\n${quickPopupText.answers}` : ''));
+      showToast('Copied');
+    });
+    document.getElementById('quickPopupPrint').addEventListener('click', () => window.print());
+
+    // Print only the popup (answers go on the last page only if they are showing)
+    window.addEventListener('beforeprint', () => { if (isQuickPopupOpen()) document.body.classList.add('quick-popup-printing'); });
+    window.addEventListener('afterprint', () => document.body.classList.remove('quick-popup-printing'));
   }
 
   // --- MONTHLY FREE USAGE LIMIT LOGIC (10 Plans / Calendar Month) ---
@@ -657,22 +849,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.chat-chip[data-action]').forEach(chip => {
       chip.addEventListener('click', () => {
         const action = chip.getAttribute('data-action');
-        if (!action) return;
-
-        if (sendFollowUpBtn.disabled) {
-          showToast('Please wait for the current response to complete...', 'error');
-          return;
-        }
-
-        const thread = getActiveThread();
-        const topic = (thread && thread.topic) ? thread.topic : (topicInput.value.trim() || 'this topic');
-        const promptText = getQuickActionPrompt(action, topic, thread);
-        if (promptText) {
-          followUpInput.value = promptText;
-          handleSendFollowUp();
-        }
+        if (action) openQuickPopup(action);
       });
     });
+    setupQuickPopup();
 
   }
 
@@ -721,7 +901,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
         if (response.status === 503) {
-          showToast(result.error || 'Service abhi available nahi, thori der baad try karein', 'error');
+          showToast('Service is busy right now. Please try again in a moment.', 'error');
           return;
         }
         throw new Error(result.error || 'Failed to generate content from server.');
@@ -830,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
         if (response.status === 503) {
-          showToast(result.error || 'Service abhi available nahi, thori der baad try karein', 'error');
+          showToast('Service is busy right now. Please try again in a moment.', 'error');
           return;
         }
         throw new Error(result.error || 'Failed to get follow-up response.');
@@ -873,13 +1053,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Adds the chosen class to the topic ("Fractions" -> "Fractions (Class 5)") unless the topic already names one
   function withSelectedClass(topic) {
-    if (!classSelect || /\b(?:grade|class)\s*\d{1,2}\b/i.test(topic)) return topic;
-    return `${topic} (Class ${classSelect.value})`;
+    if (!classSelect || /\b(?:grade|class)\s*\d{1,2}\b|\b[oa]\s*level\b/i.test(topic)) return topic;
+    const value = classSelect.value;
+    return `${topic} (${/^\d+$/.test(value) ? 'Class ' + value : value})`;
   }
 
   // Splits "Photosynthesis for Grade 7" into a heading and a "Class 7" label
   function splitTopicAndClass(topic) {
     const text = (topic || '').trim();
+    const levelMatch = text.match(/\(?\b([oa])\s*level\b\)?/i);
+    if (levelMatch) {
+      const levelTitle = text.replace(levelMatch[0], '').replace(/\s+(?:for|in)\s*$/i, '').replace(/[\s,\-–:]+$/, '').trim();
+      return { title: levelTitle || text, classLabel: `${levelMatch[1].toUpperCase()} Level` };
+    }
     const match = text.match(/\(?\b(?:grade|class)\s*(\d{1,2})\b\)?/i);
     if (!match) return { title: text, classLabel: '' };
     const title = text.replace(match[0], '').replace(/\s+(?:for|in)\s*$/i, '').replace(/[\s,\-–:]+$/, '').trim();

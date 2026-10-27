@@ -302,6 +302,8 @@
               <option value="10">Class 10</option>
               <option value="11">Class 11</option>
               <option value="12">Class 12</option>
+              <option value="O Level">O Level</option>
+              <option value="A Level">A Level</option>
             </select>
 
             <button class="btn btn-accent generate-btn touch-target" id="generateBtn">Make my plan</button>
@@ -422,9 +424,12 @@
             </div>
 
             <div class="suggestion-chips">
-              <button class="chat-chip touch-target" data-action="pop-quiz" title="10 mixed questions with an answer key">Pop quiz</button>
-              <button class="chat-chip touch-target" data-action="mcqs" title="10 multiple choice questions with an answer key">10 MCQs</button>
-              <button class="chat-chip touch-target" data-action="answer-key" title="Answers for all exercises in this plan">Answer key</button>
+              <button class="chat-chip touch-target" data-action="pop-quiz" title="10 mixed questions, printable">Printable Pop Quiz</button>
+              <button class="chat-chip touch-target" data-action="mcqs" title="10 multiple choice questions">MCQs</button>
+              <button class="chat-chip touch-target" data-action="real-life" title="5 child-friendly real-life examples">Real-Life Examples</button>
+              <button class="chat-chip touch-target" data-action="mini-research" title="1 take-home exploration task">Mini Research Task</button>
+              <button class="chat-chip touch-target" data-action="resources" title="Google, Pinterest and YouTube links">Related Resources</button>
+              <button class="chat-chip touch-target" data-action="challenge" title="3 open-ended questions with model answers">Challenge Question</button>
             </div>
           </div>
 
@@ -449,10 +454,29 @@
     </main>
   </div>
 
+  <!-- QUICK ACTION POPUP (same for all 6 buttons) -->
+  <div class="quick-popup" id="quickPopup" role="dialog" aria-modal="true" aria-labelledby="quickPopupTitle">
+    <div class="quick-popup-box">
+      <div class="quick-popup-head">
+        <h3 id="quickPopupTitle"></h3>
+        <button type="button" class="icon-btn touch-target" id="quickPopupClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="quick-popup-scroll">
+        <div class="quick-popup-body" id="quickPopupBody"></div>
+        <div class="quick-popup-answers" id="quickPopupAnswers"></div>
+      </div>
+      <div class="quick-popup-foot">
+        <button type="button" class="btn btn-outline touch-target" id="quickPopupShowAnswers" style="display:none">Show answers</button>
+        <button type="button" class="btn btn-outline touch-target" id="quickPopupCopy">Copy</button>
+        <button type="button" class="btn btn-outline touch-target" id="quickPopupPrint">Print</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- App Script as Module for Firebase ES Imports -->
-  <script type="module" src="app.js?v=9"></script>
+  <script type="module" src="app.js?v=12"></script>
 </body>
 </html>

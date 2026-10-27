@@ -102,7 +102,7 @@ try {
 async function verifyFirebaseTokenFromRequest(req) {
   if (!adminAuth) {
     console.error('[Auth Error] Admin Auth is not initialized:', firestoreInitError);
-    const err = new Error('Service abhi available nahi, thori der baad try karein');
+    const err = new Error('Service is busy right now. Please try again in a moment.');
     err.status = 503;
     throw err;
   }
@@ -154,7 +154,7 @@ function getCurrentMonthKey() {
 async function getMonthlyUsage(email) {
   if (!firestoreDb) {
     console.error('[Firestore Error] Cloud Firestore not connected:', firestoreInitError);
-    const err = new Error('Service abhi available nahi, thori der baad try karein');
+    const err = new Error('Service is busy right now. Please try again in a moment.');
     err.status = 503;
     throw err;
   }
@@ -189,7 +189,7 @@ async function getMonthlyUsage(email) {
     };
   } catch (dbErr) {
     console.error(`[Firestore Error] getMonthlyUsage failed for ${counterId}:`, dbErr.message);
-    const err = new Error('Service abhi available nahi, thori der baad try karein');
+    const err = new Error('Service is busy right now. Please try again in a moment.');
     err.status = 503;
     throw err;
   }
@@ -199,7 +199,7 @@ async function getMonthlyUsage(email) {
 async function incrementMonthlyUsage(email, userId) {
   if (!firestoreDb) {
     console.error('[Firestore Error] Cloud Firestore not connected:', firestoreInitError);
-    const err = new Error('Service abhi available nahi, thori der baad try karein');
+    const err = new Error('Service is busy right now. Please try again in a moment.');
     err.status = 503;
     throw err;
   }
@@ -245,7 +245,7 @@ async function incrementMonthlyUsage(email, userId) {
     };
   } catch (dbErr) {
     console.error(`[Firestore Error] incrementMonthlyUsage failed for ${counterId}:`, dbErr.message);
-    const err = new Error('Service abhi available nahi, thori der baad try karein');
+    const err = new Error('Service is busy right now. Please try again in a moment.');
     err.status = 503;
     throw err;
   }
@@ -500,7 +500,7 @@ app.get('/api/user/usage', async (req, res) => {
     console.error('Error in /api/user/usage:', err.message);
     return res.status(503).json({
       success: false,
-      error: 'Service abhi available nahi, thori der baad try karein'
+      error: 'Service is busy right now. Please try again in a moment.'
     });
   }
 });
@@ -698,7 +698,7 @@ Return ONLY a valid raw JSON object matching this exact schema:
     // Any Firestore or service account or AI connection failure:
     return res.status(503).json({
       success: false,
-      error: 'Service abhi available nahi, thori der baad try karein'
+      error: 'Service is busy right now. Please try again in a moment.'
     });
   }
 });
@@ -767,7 +767,7 @@ Instructions:
     }
     return res.status(503).json({
       success: false,
-      error: 'Service abhi available nahi, thori der baad try karein'
+      error: 'Service is busy right now. Please try again in a moment.'
     });
   }
 });
