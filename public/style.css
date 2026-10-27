@@ -3409,3 +3409,40 @@ html, body, .main-content { background-color: #FAF8F5; }
   .quick-popup-foot .btn { border-color: var(--t-accent); color: var(--t-accent-dark); background: #fff; }
   .quick-popup-foot .btn:hover { background: var(--t-tint-2); }
 }
+
+/* SLO box (v19) */
+.slo-input { resize: vertical; min-height: 4.5rem; }
+.slo-hint { display: flex; justify-content: space-between; gap: 1rem; margin: 0.4rem 0 0; font-size: 0.85rem; color: #6b7280; }
+.slo-covered { margin: 0 0 1rem; padding: 0.85rem 1.1rem; background: #fff; border: 1px solid #ead9cc; border-left: 4px solid #c2593a; border-radius: 0.75rem; }
+.slo-covered strong { display: block; margin-bottom: 0.35rem; }
+.slo-covered ul { margin: 0; padding-left: 1.2rem; }
+.slo-covered li { margin: 0.2rem 0; }
+@media print { .slo-covered { break-inside: avoid; } }
+
+/* Challenge Question: bold number only, blank space to write (v20) */
+.quick-popup-body.has-write-space li { padding-bottom: 4.5rem; border-bottom: 1px dotted #c9b8aa; margin-bottom: 0.9rem; font-weight: 400; }
+.quick-popup-body.has-write-space li::marker { font-weight: 700; }
+
+.slo-tip { margin: 0.25rem 0 0; font-size: 0.8rem; color: #6b7280; }
+
+/* New topic page: never cut off at the top when the card is taller than the screen (v22) */
+.hero-section { align-items: flex-start; }
+.newtopic-card { margin: auto; }
+
+/* Each quick button + its popup get their own colour (v25) */
+.chat-chip[data-action="pop-quiz"], .quick-popup[data-action="pop-quiz"] { --t-accent: #c2593a; --t-accent-dark: #8f3d24; --t-tint: #fbeee8; --t-tint-2: #f3d6c8; }
+.chat-chip[data-action="mcqs"], .quick-popup[data-action="mcqs"] { --t-accent: #2f7d5b; --t-accent-dark: #1f5a41; --t-tint: #e8f5ee; --t-tint-2: #cfe8da; }
+.chat-chip[data-action="real-life"], .quick-popup[data-action="real-life"] { --t-accent: #2b6cb0; --t-accent-dark: #1e4e82; --t-tint: #e7f0fa; --t-tint-2: #cddff2; }
+.chat-chip[data-action="mini-research"], .quick-popup[data-action="mini-research"] { --t-accent: #7c4dbd; --t-accent-dark: #56318a; --t-tint: #f1eafa; --t-tint-2: #ddd0f0; }
+.chat-chip[data-action="resources"], .quick-popup[data-action="resources"] { --t-accent: #0f7f8a; --t-accent-dark: #0a5a62; --t-tint: #e4f5f6; --t-tint-2: #c5e6e9; }
+.chat-chip[data-action="challenge"], .quick-popup[data-action="challenge"] { --t-accent: #b7791f; --t-accent-dark: #865512; --t-tint: #fcf3e1; --t-tint-2: #f3e0b6; }
+.chat-chip[data-action] { border-color: var(--t-accent); color: var(--t-accent-dark); background: var(--t-tint); }
+.chat-chip[data-action]:hover { background: var(--t-tint-2); }
+.quick-popup[data-action="resources"] #quickPopupPrint { display: none; }
+@media screen {
+  .quick-popup .resource-link { display: flex; align-items: center; gap: 0.75rem; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.7rem 0.9rem; color: #374151; font-weight: 500; text-decoration: none; }
+  .quick-popup .resource-link:hover { background: var(--t-tint); border-color: var(--t-accent); text-decoration: none; }
+  .quick-popup .resource-icon { font-size: 1.25rem; line-height: 1; }
+  .quick-popup .resource-label { flex: 1; }
+  .quick-popup .resource-open { color: #6b7280; font-size: 1.1rem; }
+}

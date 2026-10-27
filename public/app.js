@@ -70,6 +70,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // DOM Elements - Hero Input
   const topicInput = document.getElementById('topicInput');
+  const sloInput = document.getElementById('sloInput');
+  const sloCount = document.getElementById('sloCount');
+  const sloCovered = document.getElementById('sloCovered');
+  const sloCoveredList = document.getElementById('sloCoveredList');
+  function updateSloCount() { if (sloInput && sloCount) sloCount.textContent = `${sloInput.value.length}/1000`; }
+  if (sloInput) sloInput.addEventListener('input', updateSloCount);
   const classSelect = document.getElementById('classSelect');
   const navTopicTitle = document.getElementById('navTopicTitle');
   const generateBtn = document.getElementById('generateBtn');
@@ -213,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
 ## True / False
 (5 statements)
 ## Fill in the Blanks
-(5 sentences, each with one blank written as ______)
+(5 sentences, each with one blank written as ______. Blank rules: each blank has exactly ONE correct answer, the exact word used in the textbook. Do NOT make example-style blanks like "is like a ___" (examples may appear in the sentence, never as the answer). All 5 answers must be different, no repeats.)
 ## One-Word Answers
 (5 questions that have a one-word answer)
 Number the questions in each section as a list starting again from 1. Do NOT put a label like [True/False] before questions. For True / False, write only the statement, with NO options (no A/B, no "True"/"False" choices). ${ANSWERS_RULE} Put the answer key in the same three sections, in the same order, with the same headings and numbering.`
@@ -247,7 +253,9 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     'challenge': {
       title: 'Challenge Question',
       hasAnswers: true,
-      prompt: (t) => `Generate exactly 3 challenging, open-ended questions about "${t}" that can spark a classroom debate. Write them as a simple numbered list (1, 2, 3), one under the other. Each list item must contain ONLY the question, written in bold, and nothing else. Then write a line containing only ${ANSWERS_MARKER} and after it, for each question (same numbers), give a comprehensive model answer and key discussion points as a short bullet list.`
+      stripBold: true,
+      writeSpace: true,
+      prompt: (t) => `Generate exactly 3 challenging, open-ended questions about "${t}" that can spark a classroom debate. Write them as a simple numbered list (1, 2, 3), one under the other. Each list item must contain ONLY the question in normal weight (no bold, no italics), and nothing else. Then write a line containing only ${ANSWERS_MARKER} and after it, for each question (same numbers), give a comprehensive model answer and key discussion points as a short bullet list.`
     }
   };
 
@@ -300,7 +308,7 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     if (cfg.links) {
       const links = cfg.links(topic);
       bodyEl.innerHTML = `<p class="quick-popup-topic">Links for <strong>${escapeHtml(topic)}</strong></p><ul class="resources-list">` +
-        links.map(([label, url]) => `<li><a class="resource-link" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a></li>`).join('') +
+        links.map(([label, url], i) => `<li><a class="resource-link" href="${url}" target="_blank" rel="noopener noreferrer"><span class="resource-icon" aria-hidden="true">${['🔍', '📄', '📌', '▶️'][i] || '🔗'}</span><span class="resource-label">${escapeHtml(label)}</span><span class="resource-open" aria-hidden="true" title="Opens in a new tab">↗</span></a></li>`).join('') +
         '</ul>';
       quickPopupText.body = links.map(([label, url]) => `${label}: ${url}`).join('\n');
       copyBtn.disabled = false;
@@ -381,6 +389,7 @@ Number the questions in each section as a list starting again from 1. Do NOT put
 
       quickPopupText = { body: bodyMd, answers: answersMd };
       bodyEl.innerHTML = renderQuickMarkdown(bodyHtmlMd);
+      bodyEl.classList.toggle('has-write-space', !!cfg.writeSpace);
       if (answersMd) {
         answersEl.innerHTML = '<h3 class="quick-answers-heading">Answers</h3>' + renderQuickMarkdown(answersMd);
         showBtn.style.display = '';
@@ -651,11 +660,8 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     loadThreadsFromStorage();
     renderSidebar();
 
-    if (threads.length > 0) {
-      loadThread(threads[0].id);
-    } else {
-      showHeroView();
-    }
+    // Always open on the New topic page; saved topics stay in the sidebar
+    showHeroView();
   }
 
   function showAuthModal() {
@@ -861,7 +867,7 @@ Number the questions in each section as a list starting again from 1. Do NOT put
     }
 
     const periodLength = getSelectedPeriodLength();
-    showLoading('Making your period plan...', `A ${periodLength}-minute plan with group work for Basic and Advanced groups.`);
+    showLoading('Creating your lesson plan...', `A ${periodLength}-minute plan with group work for Basic and Advanced groups.`);
 
     try {
       const response = await fetch('/api/generate', {
@@ -872,7 +878,8 @@ Number the questions in each section as a list starting again from 1. Do NOT put
         },
         body: JSON.stringify({
           topic: topicName,
-          periodLength
+          periodLength,
+          ...(sloInput && sloInput.value.trim() ? { slos: sloInput.value.trim().slice(0, 1000) } : {})
         })
       });
 
@@ -918,6 +925,7 @@ Number the questions in each section as a list starting again from 1. Do NOT put
       renderSidebar();
 
       topicInput.value = '';
+      if (sloInput) { sloInput.value = ''; updateSloCount(); }
       loadThread(newThread.id);
       showToast('Lesson plan generated successfully!');
 
@@ -1200,6 +1208,13 @@ Number the questions in each section as a list starting again from 1. Do NOT put
 
     const data = thread.initialResponse;
 
+    // "SLOs covered" box (only for plans made with pasted SLOs)
+    if (sloCovered && sloCoveredList) {
+      const slos = Array.isArray(data.slos) ? data.slos : [];
+      sloCoveredList.innerHTML = slos.map(s => `<li>${escapeHtml(s)}</li>`).join('');
+      sloCovered.style.display = slos.length ? '' : 'none';
+    }
+
     // Period Plan tab (plans made before this feature have none, so the tab is hidden for them)
     const hasPeriodPlan = !!(data.periodPlan && data.periodPlan.hook);
     renderPeriodPlan(hasPeriodPlan ? data.periodPlan : null, classLabel);
@@ -1390,6 +1405,10 @@ Number the questions in each section as a list starting again from 1. Do NOT put
       fullText += `GREETING:\n${data.greeting}\n\n`;
     }
     
+    if (Array.isArray(data.slos) && data.slos.length) {
+      fullText += 'SLOs COVERED:\n' + data.slos.map((s, i) => ` ${i + 1}. ${s}`).join('\n') + '\n\n';
+    }
+
     // 0. Period Plan (minute by minute)
     fullText += buildPeriodPlanText(data.periodPlan);
 

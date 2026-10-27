@@ -83,7 +83,7 @@ Two teachers, given no help, create their first plan within 1 minute.
 - [x] Task 1 loader push
 - [x] Task 2 minimal UI
 - [x] Task 3 Period Plan
-- [ ] Task 4 SLO box
+- [x] Task 4 SLO box
 - [ ] Task 5 licenses
 - [ ] Google login screen par app ka naam "Teacher AI" + Privacy/Terms links (Google Cloud OAuth consent screen)
 - [ ] UptimeRobot se site jagaye rakhna
@@ -97,3 +97,10 @@ Two teachers, given no help, create their first plan within 1 minute.
 - All app text and the 8 server messages are now English. Class list has O Level and A Level.
 - Period Plan WIP is saved on branch `period-plan` (not on main). Backup copy: `C:\Users\Light-Tech\Teacher-ai-backup-period-plan`.
 - Next: Task 3 Period Plan — merge `period-plan` into main (expect conflicts in app.js, index.html, style.css).
+
+## Last session (27 Oct)
+- Task 4 SLO box done: optional "Paste SLOs" field (max 1000 chars), "SLOs covered" box above the plan, SLOs added to Copy. Plan, Basic, Advanced, Tips and all 6 popups stay strictly inside the SLOs.
+- AI prompts: strict class-level rule (Class 1-5: simple words, small numbers), Fill in the Blanks rules (one textbook answer, no repeats), Challenge questions with writing space and bold number only.
+- Related Resources popup redesigned (white link cards with icons and ↗, no Print); each quick button and its popup now has its own colour.
+- Wording and layout: "lesson plan" in button and loading text (Period Plan tab name unchanged); app opens on New topic page; its heading no longer gets cut off.
+- Next: Task 5 licenses (unlimited access); also test SLO plan and popups with a real login on the live site.

@@ -319,7 +319,12 @@
             </div>
             </div>
 
-            <button class="btn btn-accent generate-btn touch-target" id="generateBtn">Make my period plan</button>
+            <label class="field-label" for="sloInput">Paste SLOs from your book (optional)</label>
+            <textarea id="sloInput" class="field-input slo-input" rows="3" maxlength="1000" placeholder="e.g. Students will be able to add fractions with like denominators." autocomplete="off"></textarea>
+            <p class="slo-hint"><span>Paste 1-3 SLOs for this period</span><span id="sloCount">0/1000</span></p>
+            <p class="slo-tip">Tip: Use Google Lens to copy SLOs from a book photo.</p>
+
+            <button class="btn btn-accent generate-btn touch-target" id="generateBtn">Make my lesson plan</button>
           </div>
 
           <!-- SAMPLE TOPICS -->
@@ -344,6 +349,11 @@
                 <span id="activeTopicClass"></span>
                 <span class="steam-chip" id="planSteamChip" style="display: none;"></span>
               </p>
+            </div>
+
+            <div class="slo-covered" id="sloCovered" style="display: none;">
+              <strong>SLOs covered</strong>
+              <ul id="sloCoveredList"></ul>
             </div>
 
             <!-- 2. PLAN TOOLBAR: Level tabs (left) + Copy / Print (right) -->
@@ -486,6 +496,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- App Script as Module for Firebase ES Imports -->
-  <script type="module" src="app.js?v=18"></script>
+  <script type="module" src="app.js?v=25"></script>
 </body>
 </html>

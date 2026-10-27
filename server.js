@@ -565,6 +565,13 @@ app.post('/api/generate', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Topic is required.' });
     }
 
+    // Optional SLOs pasted by the teacher: max ~1000 chars, one SLO per line
+    const slos = (typeof req.body.slos === 'string' ? req.body.slos.slice(0, 1000) : '')
+      .split(/\r?\n/)
+      .map(l => l.replace(/^\s*(?:[-*\u2022]|\d+[.)])\s*/, '').trim())
+      .filter(Boolean)
+      .slice(0, 10);
+
     const requestedLength = Number(req.body.periodLength);
     const periodLength = PERIOD_LENGTHS.includes(requestedLength) ? requestedLength : DEFAULT_PERIOD_LENGTH;
 
@@ -602,7 +609,7 @@ app.post('/api/generate', async (req, res) => {
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: buildGenerateSystemPrompt(periodLength) },
-        { role: 'user', content: buildGenerateUserPrompt(topic.trim()) }
+        { role: 'user', content: buildGenerateUserPrompt(topic.trim(), slos) }
       ],
       ...GENERATE_SETTINGS
     };
@@ -644,6 +651,7 @@ app.post('/api/generate', async (req, res) => {
       periodPlan: normalizePeriodPlan(responseJSON.periodPlan, periodLength),
       foundation: foundationData,
       core: coreData,
+      ...(slos.length ? { slos } : {}),
       beginner: foundationData,            // Backward compatibility alias
       intermediate: coreData,              // Backward compatibility alias
       engagementTips: (Array.isArray(responseJSON.engagementTips) ? responseJSON.engagementTips : [])
